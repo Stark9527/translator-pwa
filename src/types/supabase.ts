@@ -28,6 +28,9 @@ export interface FlashcardRow {
   definitions: any[]; // JSONB
   examples: any[]; // JSONB
 
+  // 用户标记
+  favorite: boolean; // 是否收藏
+
   // FSRS 算法字段（展开存储）
   state: 'new' | 'learning' | 'review' | 'relearning';
   due: string; // TIMESTAMPTZ

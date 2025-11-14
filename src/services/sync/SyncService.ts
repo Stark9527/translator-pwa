@@ -295,6 +295,9 @@ export class SyncService {
       definitions: card.meanings || [],
       examples: card.examples || [],
 
+      // 用户标记
+      favorite: card.favorite,
+
       // FSRS 字段（展开存储）
       state: FSRS_STATE_TO_STRING[card.fsrsCard.state as keyof typeof FSRS_STATE_TO_STRING] || 'new',
       due: new Date(card.fsrsCard.due).toISOString(),
@@ -339,7 +342,7 @@ export class SyncService {
 
       groupId: cardRow.group_id || 'default',
       tags: [],
-      favorite: false,
+      favorite: cardRow.favorite || false,
 
       // 重新组装 FSRS 数据
       fsrsCard: {
