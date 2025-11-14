@@ -95,7 +95,7 @@ export function FlashcardCard({
   return (
     <div
       className={cn(
-        'group relative p-4 border border-border rounded-lg bg-card hover:shadow-md transition-all',
+        'group relative p-4 border border-border rounded-lg bg-card transition-all',
         batchMode ? 'cursor-pointer' : onClick && 'cursor-pointer hover:border-primary/50',
         isSelected && 'border-primary bg-primary/5'
       )}
@@ -122,7 +122,7 @@ export function FlashcardCard({
         <div className="flex-1 min-w-0">
           {/* 头部：单词 + 音标 + 发音 + 收藏 */}
           <div className="mb-3">
-            <div className="flex items-baseline gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <h3 className="text-lg font-semibold text-foreground">
                 {flashcard.word}
               </h3>

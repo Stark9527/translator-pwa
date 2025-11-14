@@ -183,10 +183,19 @@ export default function FlashcardListPage() {
 
   const handleToggleFavorite = async (id: string) => {
     try {
+      // 乐观更新：立即在本地更新状态
+      setFlashcards(prevCards =>
+        prevCards.map(card =>
+          card.id === id ? { ...card, favorite: !card.favorite } : card
+        )
+      );
+
+      // 在后台更新数据库
       await flashcardService.toggleFavorite(id);
-      await loadFlashcards();
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
+      // 如果失败，重新加载以回滚状态
+      await loadFlashcards();
     }
   };
 

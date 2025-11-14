@@ -341,43 +341,43 @@ export function TranslatePage() {
             {translationResult?.meanings && translationResult.meanings.length > 0 && (
               <div className="bg-card rounded-lg p-4 border border-border">
                 <div className="mb-3">
-                  <div className="flex items-baseline gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
                       {translationResult.text}
                     </h3>
-                    {translationResult.phonetic && (
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      {translationResult.phonetic && (
                         <span className="text-sm text-muted-foreground">
                           {translationResult.phonetic}
                         </span>
-                        <button
-                          onClick={() => handlePlayAudio(translationResult.text, translationResult.from)}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          aria-label="发音"
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
-                        <button
-                          onClick={handleAddToFlashcard}
-                          disabled={addingToFlashcard || flashcardAdded}
-                          className={cn(
-                            'p-1 rounded transition-colors',
-                            addingToFlashcard || flashcardAdded
-                              ? 'cursor-not-allowed opacity-50'
-                              : 'hover:bg-accent'
-                          )}
-                          aria-label="添加到卡片"
-                        >
-                          {addingToFlashcard ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : flashcardAdded ? (
-                            <Check className="w-3.5 h-3.5 text-green-600" />
-                          ) : (
-                            <BookmarkPlus className="w-3.5 h-3.5 text-muted-foreground" />
-                          )}
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      <button
+                        onClick={() => handlePlayAudio(translationResult.text, translationResult.from)}
+                        className="p-1 hover:bg-accent rounded transition-colors"
+                        aria-label="发音"
+                      >
+                        <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                      <button
+                        onClick={handleAddToFlashcard}
+                        disabled={addingToFlashcard || flashcardAdded}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          addingToFlashcard || flashcardAdded
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'hover:bg-accent'
+                        )}
+                        aria-label="添加到卡片"
+                      >
+                        {addingToFlashcard ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : flashcardAdded ? (
+                          <Check className="w-3.5 h-3.5 text-green-600" />
+                        ) : (
+                          <BookmarkPlus className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
