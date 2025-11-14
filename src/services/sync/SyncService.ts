@@ -112,7 +112,7 @@ export class SyncService {
     // 1. 获取本地所有分组
     const localGroups = await flashcardDB.getAllGroups();
 
-    // 2. 获取云端所有分组
+    // 2. 获取云端所有分组（包括已删除的，用于同步删除状态）
     const { data: remoteGroups, error } = await client
       .from('groups')
       .select('*')
@@ -130,7 +130,7 @@ export class SyncService {
     let downloaded = 0;
     const conflicts = 0;
 
-    // 3. 上传本地新增/更新的分组
+    // 3. 同步本地分组
     for (const localGroup of localGroups) {
       // 跳过默认分组（不需要同步到云端）
       if (localGroup.id === 'default') {
@@ -143,6 +143,10 @@ export class SyncService {
         // 本地新增，上传到云端
         await this.uploadGroup(localGroup, userId);
         uploaded++;
+      } else if (remoteGroup.deleted) {
+        // 云端已删除，删除本地记录
+        await flashcardDB.deleteGroup(localGroup.id);
+        console.debug('✅ 同步删除本地分组:', localGroup.id);
       } else if (localGroup.updatedAt > new Date(remoteGroup.updated_at).getTime()) {
         // 本地更新较新，上传到云端
         await this.uploadGroup(localGroup, userId);
@@ -156,10 +160,12 @@ export class SyncService {
       remoteGroupsMap.delete(localGroup.id);
     }
 
-    // 4. 下载云端新增的分组
+    // 4. 下载云端新增的分组（排除已删除的）
     for (const remoteGroup of remoteGroupsMap.values()) {
-      await this.downloadGroup(remoteGroup);
-      downloaded++;
+      if (!remoteGroup.deleted) {
+        await this.downloadGroup(remoteGroup);
+        downloaded++;
+      }
     }
 
     return { uploaded, downloaded, conflicts };
@@ -179,7 +185,7 @@ export class SyncService {
     // 1. 获取本地所有卡片
     const localCards = await flashcardDB.getAllFlashcards();
 
-    // 2. 获取云端所有卡片
+    // 2. 获取云端所有卡片（包括已删除的，用于同步删除状态）
     const { data: remoteCards, error } = await client
       .from('flashcards')
       .select('*')
@@ -205,6 +211,10 @@ export class SyncService {
         // 本地新增，上传到云端
         await this.uploadFlashcard(localCard, userId);
         uploaded++;
+      } else if (remoteCard.deleted) {
+        // 云端已删除，删除本地记录
+        await flashcardDB.deleteFlashcard(localCard.id);
+        console.debug('✅ 同步删除本地卡片:', localCard.id);
       } else if (localCard.updatedAt > new Date(remoteCard.updated_at).getTime()) {
         // 本地更新较新，上传到云端
         await this.uploadFlashcard(localCard, userId);
@@ -218,10 +228,12 @@ export class SyncService {
       remoteCardsMap.delete(localCard.id);
     }
 
-    // 4. 下载云端新增的卡片
+    // 4. 下载云端新增的卡片（排除已删除的）
     for (const remoteCard of remoteCardsMap.values()) {
-      await this.downloadFlashcard(remoteCard);
-      downloaded++;
+      if (!remoteCard.deleted) {
+        await this.downloadFlashcard(remoteCard);
+        downloaded++;
+      }
     }
 
     return { uploaded, downloaded, conflicts };
@@ -239,6 +251,7 @@ export class SyncService {
       name: group.name,
       description: group.description || null,
       color: group.color || '#3b82f6',
+      deleted: false, // 上传时标记为未删除
     };
 
     const { error } = await client
@@ -308,6 +321,9 @@ export class SyncService {
       reps: card.fsrsCard.reps,
       lapses: card.fsrsCard.lapses,
       last_review: card.fsrsCard.last_review ? new Date(card.fsrsCard.last_review).toISOString() : null,
+
+      // 软删除标记
+      deleted: false, // 上传时标记为未删除
     };
 
     const { error } = await client
@@ -450,7 +466,7 @@ export class SyncService {
   }
 
   /**
-   * 从云端删除单个 Flashcard
+   * 从云端删除单个 Flashcard（软删除）
    * 用于实时同步，静默执行，不抛出错误
    */
   async deleteFlashcardFromCloud(cardId: string): Promise<void> {
@@ -463,14 +479,17 @@ export class SyncService {
       const client = supabaseService.getClient();
       const { error } = await client
         .from('flashcards')
-        .delete()
+        .update({
+          deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
         .eq('id', cardId);
 
       if (error) {
         throw new Error(`删除云端卡片失败: ${error.message}`);
       }
 
-      console.debug('✅ 卡片已从云端删除:', cardId);
+      console.debug('✅ 卡片已从云端删除（软删除）:', cardId);
     } catch (error) {
       console.error('❌ 删除云端卡片失败（静默忽略）:', error);
       // 静默失败，不影响本地操作
@@ -516,7 +535,7 @@ export class SyncService {
   }
 
   /**
-   * 从云端删除单个 Group
+   * 从云端删除单个 Group（软删除）
    * 用于实时同步，静默执行，不抛出错误
    */
   async deleteGroupFromCloud(groupId: string): Promise<void> {
@@ -534,14 +553,17 @@ export class SyncService {
       const client = supabaseService.getClient();
       const { error } = await client
         .from('groups')
-        .delete()
+        .update({
+          deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
         .eq('id', groupId);
 
       if (error) {
         throw new Error(`删除云端分组失败: ${error.message}`);
       }
 
-      console.debug('✅ 分组已从云端删除:', groupId);
+      console.debug('✅ 分组已从云端删除（软删除）:', groupId);
     } catch (error) {
       console.error('❌ 删除云端分组失败（静默忽略）:', error);
       // 静默失败，不影响本地操作

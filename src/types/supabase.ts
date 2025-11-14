@@ -9,6 +9,8 @@ export interface GroupRow {
   name: string;
   description?: string | null;
   color: string;
+  deleted: boolean; // 软删除标记
+  deleted_at?: string | null; // TIMESTAMPTZ, 删除时间
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
 }
@@ -42,6 +44,8 @@ export interface FlashcardRow {
   lapses: number; // INTEGER
   last_review?: string | null; // TIMESTAMPTZ
 
+  deleted: boolean; // 软删除标记
+  deleted_at?: string | null; // TIMESTAMPTZ, 删除时间
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
 }
