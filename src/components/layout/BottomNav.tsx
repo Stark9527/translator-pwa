@@ -47,7 +47,7 @@ export function BottomNav() {
               cn(
                 'flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-colors min-w-[60px]',
                 isActive
-                  ? 'text-primary bg-primary/10'
+                  ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )
             }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * 登录/注册页面
@@ -9,6 +10,7 @@ import { cn } from '@/utils/cn';
  */
 export function LoginPage() {
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,20 +33,17 @@ export function LoginPage() {
 
     setIsLoading(true);
     try {
-      // TODO: 调用 Supabase 认证服务
-      // if (isLogin) {
-      //   await SupabaseService.signIn(email, password);
-      // } else {
-      //   await SupabaseService.signUp(email, password);
-      // }
+      // 调用真实的认证服务
+      if (isLogin) {
+        await signIn(email, password);
+      } else {
+        await signUp(email, password);
+      }
 
-      // 临时模拟
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // 登录成功，跳转到主页
+      // 登录/注册成功，跳转到主页
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败，请重试');
+      setError(err instanceof Error ? err.message : '操作失败，请重试');
     } finally {
       setIsLoading(false);
     }

@@ -40,6 +40,11 @@ export class SyncService {
   private isSyncing = false;
   private lastSyncTime: number = 0;
 
+  // 防抖队列：用于合并短时间内的多次同步请求
+  private groupSyncQueue = new Map<string, number>();
+  private cardSyncQueue = new Map<string, number>();
+  private readonly DEBOUNCE_DELAY = 1000; // 1秒防抖延迟
+
   /**
    * 执行完整同步
    */
@@ -404,6 +409,140 @@ export class SyncService {
    */
   getIsSyncing(): boolean {
     return this.isSyncing;
+  }
+
+  // ==================== 单个项目的实时同步方法 ====================
+
+  /**
+   * 同步单个 Flashcard 到云端（带防抖）
+   * 用于实时同步，静默执行，不抛出错误
+   */
+  syncFlashcardToCloud(card: Flashcard): void {
+    // 如果未登录，跳过同步
+    if (!supabaseService.isAuthenticated()) {
+      return;
+    }
+
+    // 清除之前的防抖定时器
+    const existingTimer = this.cardSyncQueue.get(card.id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // 设置新的防抖定时器
+    const timer = setTimeout(async () => {
+      try {
+        const userId = supabaseService.getUserId();
+        await this.uploadFlashcard(card, userId);
+        console.debug('✅ 卡片已同步到云端:', card.id);
+      } catch (error) {
+        console.error('❌ 卡片同步失败（静默忽略）:', error);
+        // 静默失败，不影响本地操作
+      } finally {
+        this.cardSyncQueue.delete(card.id);
+      }
+    }, this.DEBOUNCE_DELAY);
+
+    this.cardSyncQueue.set(card.id, timer);
+  }
+
+  /**
+   * 从云端删除单个 Flashcard
+   * 用于实时同步，静默执行，不抛出错误
+   */
+  async deleteFlashcardFromCloud(cardId: string): Promise<void> {
+    // 如果未登录，跳过同步
+    if (!supabaseService.isAuthenticated()) {
+      return;
+    }
+
+    try {
+      const client = supabaseService.getClient();
+      const { error } = await client
+        .from('flashcards')
+        .delete()
+        .eq('id', cardId);
+
+      if (error) {
+        throw new Error(`删除云端卡片失败: ${error.message}`);
+      }
+
+      console.debug('✅ 卡片已从云端删除:', cardId);
+    } catch (error) {
+      console.error('❌ 删除云端卡片失败（静默忽略）:', error);
+      // 静默失败，不影响本地操作
+    }
+  }
+
+  /**
+   * 同步单个 Group 到云端（带防抖）
+   * 用于实时同步，静默执行，不抛出错误
+   */
+  syncGroupToCloud(group: FlashcardGroup): void {
+    // 如果未登录，跳过同步
+    if (!supabaseService.isAuthenticated()) {
+      return;
+    }
+
+    // 跳过默认分组
+    if (group.id === 'default') {
+      return;
+    }
+
+    // 清除之前的防抖定时器
+    const existingTimer = this.groupSyncQueue.get(group.id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // 设置新的防抖定时器
+    const timer = setTimeout(async () => {
+      try {
+        const userId = supabaseService.getUserId();
+        await this.uploadGroup(group, userId);
+        console.debug('✅ 分组已同步到云端:', group.id);
+      } catch (error) {
+        console.error('❌ 分组同步失败（静默忽略）:', error);
+        // 静默失败，不影响本地操作
+      } finally {
+        this.groupSyncQueue.delete(group.id);
+      }
+    }, this.DEBOUNCE_DELAY);
+
+    this.groupSyncQueue.set(group.id, timer);
+  }
+
+  /**
+   * 从云端删除单个 Group
+   * 用于实时同步，静默执行，不抛出错误
+   */
+  async deleteGroupFromCloud(groupId: string): Promise<void> {
+    // 如果未登录，跳过同步
+    if (!supabaseService.isAuthenticated()) {
+      return;
+    }
+
+    // 跳过默认分组
+    if (groupId === 'default') {
+      return;
+    }
+
+    try {
+      const client = supabaseService.getClient();
+      const { error } = await client
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        throw new Error(`删除云端分组失败: ${error.message}`);
+      }
+
+      console.debug('✅ 分组已从云端删除:', groupId);
+    } catch (error) {
+      console.error('❌ 删除云端分组失败（静默忽略）:', error);
+      // 静默失败，不影响本地操作
+    }
   }
 }
 

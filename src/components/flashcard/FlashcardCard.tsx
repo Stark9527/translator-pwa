@@ -95,7 +95,7 @@ export function FlashcardCard({
   return (
     <div
       className={cn(
-        'group relative p-3 border border-border rounded-lg bg-card hover:shadow-md transition-all',
+        'group relative p-4 border border-border rounded-lg bg-card hover:shadow-md transition-all',
         batchMode ? 'cursor-pointer' : onClick && 'cursor-pointer hover:border-primary/50',
         isSelected && 'border-primary bg-primary/5'
       )}
@@ -121,61 +121,116 @@ export function FlashcardCard({
         {/* 卡片主体内容 */}
         <div className="flex-1 min-w-0">
           {/* 头部：单词 + 音标 + 发音 + 收藏 */}
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <div className="flex-1 flex items-center gap-2">
-              <h3 className="text-lg font-medium text-foreground">{flashcard.word}</h3>
-              {/* 音标 - 在发声按钮左边 */}
+          <div className="mb-3">
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                {flashcard.word}
+              </h3>
               {flashcard.phonetic && (
-                <span className="text-sm text-purple-600 dark:text-purple-400">
-                  {flashcard.phonetic}
-                </span>
-              )}
-              {/* 发声按钮 - 常驻 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSpeak(flashcard.word, flashcard.sourceLanguage);
-                }}
-                className="p-1 hover:bg-accent rounded transition-colors"
-                title="朗读"
-              >
-                <Icon icon={Volume2} size="xs" className={cn('text-muted-foreground', isPlaying && 'text-primary')} />
-              </button>
-            </div>
-
-            {!batchMode && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite?.(flashcard.id);
-                }}
-                className="p-1 hover:bg-accent rounded transition-colors"
-                title={flashcard.favorite ? '取消收藏' : '收藏'}
-              >
-                <Icon
-                  icon={Star}
-                  size="sm"
-                  className={cn(
-                    'transition-colors',
-                    flashcard.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-muted-foreground">
+                    {flashcard.phonetic}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSpeak(flashcard.word, flashcard.sourceLanguage);
+                    }}
+                    className="p-1 hover:bg-accent rounded transition-colors"
+                    title="发音"
+                  >
+                    <Icon icon={Volume2} size="xs" className={cn('text-muted-foreground', isPlaying && 'text-primary')} />
+                  </button>
+                  {/* 收藏按钮移到音标旁边 */}
+                  {!batchMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite?.(flashcard.id);
+                      }}
+                      className="p-1 hover:bg-accent rounded transition-colors"
+                      title={flashcard.favorite ? '取消收藏' : '收藏'}
+                    >
+                      <Icon
+                        icon={Star}
+                        size="xs"
+                        className={cn(
+                          'transition-colors',
+                          flashcard.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
+                        )}
+                      />
+                    </button>
                   )}
-                />
-              </button>
-            )}
+                </div>
+              )}
+              {/* 如果没有音标，单独显示发音和收藏按钮 */}
+              {!flashcard.phonetic && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSpeak(flashcard.word, flashcard.sourceLanguage);
+                    }}
+                    className="p-1 hover:bg-accent rounded transition-colors"
+                    title="发音"
+                  >
+                    <Icon icon={Volume2} size="xs" className={cn('text-muted-foreground', isPlaying && 'text-primary')} />
+                  </button>
+                  {!batchMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite?.(flashcard.id);
+                      }}
+                      className="p-1 hover:bg-accent rounded transition-colors"
+                      title={flashcard.favorite ? '取消收藏' : '收藏'}
+                    >
+                      <Icon
+                        icon={Star}
+                        size="xs"
+                        className={cn(
+                          'transition-colors',
+                          flashcard.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
+                        )}
+                      />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* 翻译 */}
-          <p className="text-xs text-muted-foreground mb-2 whitespace-pre-line">{flashcard.translation}</p>
-
-          {/* 例句（如果有，只显示第一条） */}
-          {flashcard.examples && flashcard.examples.length > 0 && (
-            <p className="text-xs text-muted-foreground italic mb-2 line-clamp-2">
-              &quot;{flashcard.examples[0]}&quot;
+          {/* 按词性分组的释义 - 如果有 meanings 数据 */}
+          {flashcard.meanings && flashcard.meanings.length > 0 ? (
+            <div className="space-y-1 mb-2">
+              {flashcard.meanings.map((meaning, idx) => (
+                <div key={idx} className="space-y-1.5">
+                  {/* 词性和翻译内容 - 单行显示 */}
+                  <div className="text-sm text-foreground">
+                    <span className="font-medium text-primary mr-1">
+                      {meaning.partOfSpeech}.
+                    </span>
+                    <span className="leading-relaxed">
+                      {meaning.translations.map((trans, transIdx) => (
+                        <span key={transIdx}>
+                          {transIdx > 0 && '；'}
+                          {trans.text}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* 如果没有 meanings 数据，显示简单翻译 */
+            <p className="text-sm text-foreground mb-3 whitespace-pre-line leading-relaxed">
+              {flashcard.translation}
             </p>
           )}
 
           {/* 底部：徽章 + 分组 + 标签 + 操作 */}
-          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
             <div className="flex items-center gap-2 flex-wrap">
               <ProficiencyBadge level={flashcard.proficiency} />
 

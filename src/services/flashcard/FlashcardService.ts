@@ -11,12 +11,27 @@ import type {
 import type { TranslateResult } from '@/types';
 import { flashcardDB } from './FlashcardDB';
 import { fsrsService } from './FSRSService';
+import { syncService } from '../sync/SyncService';
+import { ConfigService } from '../config/ConfigService';
 
 /**
  * Flashcard 业务服务
  * 提供高层业务逻辑，协调 FlashcardDB 和 FSRS 服务
  */
 export class FlashcardService {
+  /**
+   * 检查是否应该自动同步
+   */
+  private async shouldAutoSync(): Promise<boolean> {
+    try {
+      const config = await ConfigService.getConfig();
+      return config.autoSync !== false;
+    } catch (error) {
+      console.error('Failed to check autoSync config:', error);
+      return true; // 默认启用自动同步
+    }
+  }
+
   /**
    * 从翻译结果创建 Flashcard
    */
@@ -106,6 +121,11 @@ export class FlashcardService {
     await flashcardDB.addFlashcard(flashcard);
     await this.updateGroupCardCount(flashcard.groupId);
 
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncFlashcardToCloud(flashcard);
+    }
+
     return flashcard;
   }
 
@@ -148,6 +168,11 @@ export class FlashcardService {
     await flashcardDB.addFlashcard(flashcard);
     await this.updateGroupCardCount(flashcard.groupId);
 
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncFlashcardToCloud(flashcard);
+    }
+
     return flashcard;
   }
 
@@ -177,6 +202,11 @@ export class FlashcardService {
       await this.updateGroupCardCount(params.groupId);
     }
 
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncFlashcardToCloud(updated);
+    }
+
     return updated;
   }
 
@@ -191,6 +221,11 @@ export class FlashcardService {
 
     await flashcardDB.deleteFlashcard(id);
     await this.updateGroupCardCount(flashcard.groupId);
+
+    // 实时从云端删除
+    if (await this.shouldAutoSync()) {
+      syncService.deleteFlashcardFromCloud(id);
+    }
   }
 
   /**
@@ -205,6 +240,11 @@ export class FlashcardService {
     // 更新所有涉及的分组
     for (const groupId of groupIds) {
       await this.updateGroupCardCount(groupId);
+    }
+
+    // 实时从云端批量删除
+    if (await this.shouldAutoSync()) {
+      ids.forEach(id => syncService.deleteFlashcardFromCloud(id));
     }
   }
 
@@ -245,6 +285,12 @@ export class FlashcardService {
     };
 
     await flashcardDB.updateFlashcard(updated);
+
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncFlashcardToCloud(updated);
+    }
+
     return updated;
   }
 
@@ -352,6 +398,12 @@ export class FlashcardService {
     };
 
     await flashcardDB.addGroup(group);
+
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncGroupToCloud(group);
+    }
+
     return group;
   }
 
@@ -374,6 +426,12 @@ export class FlashcardService {
     };
 
     await flashcardDB.updateGroup(updated);
+
+    // 实时同步到云端（带防抖，异步执行）
+    if (await this.shouldAutoSync()) {
+      syncService.syncGroupToCloud(updated);
+    }
+
     return updated;
   }
 
@@ -393,6 +451,11 @@ export class FlashcardService {
     }
 
     await flashcardDB.deleteGroup(id);
+
+    // 实时从云端删除
+    if (await this.shouldAutoSync()) {
+      syncService.deleteGroupFromCloud(id);
+    }
   }
 
   /**
@@ -410,9 +473,25 @@ export class FlashcardService {
   }
 
   /**
-   * 更新分组的卡片计数
+   * 重新计算所有分组的卡片数量
+   * 用于修复数据不一致的问题
+   * 注意：此方法不会触发云端同步，仅更新本地数据
    */
-  private async updateGroupCardCount(groupId: string): Promise<void> {
+  async recalculateAllGroupCounts(): Promise<void> {
+    const groups = await flashcardDB.getAllGroups();
+
+    // 批量重新计算时不触发同步，避免产生大量网络请求
+    for (const group of groups) {
+      await this.updateGroupCardCount(group.id, false);
+    }
+  }
+
+  /**
+   * 更新分组的卡片计数
+   * @param groupId 分组 ID
+   * @param sync 是否同步到云端（默认 true）
+   */
+  private async updateGroupCardCount(groupId: string, sync: boolean = true): Promise<void> {
     const group = await flashcardDB.getGroup(groupId);
     if (!group) {
       return;
@@ -427,6 +506,11 @@ export class FlashcardService {
     };
 
     await flashcardDB.updateGroup(updated);
+
+    // 实时同步到云端（带防抖，异步执行）
+    if (sync && await this.shouldAutoSync()) {
+      syncService.syncGroupToCloud(updated);
+    }
   }
 
   /**

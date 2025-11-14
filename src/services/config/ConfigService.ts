@@ -20,6 +20,7 @@ const DEFAULT_CONFIG: UserConfig = {
   theme: 'auto',
   enableShortcut: true,
   enableHistory: true,
+  autoSync: true,
 };
 
 /**
@@ -148,6 +149,10 @@ export class ConfigService {
 
     if (config.deeplPro !== undefined && typeof config.deeplPro !== 'boolean') {
       errors.push('deeplPro 必须是布尔值');
+    }
+
+    if (config.autoSync !== undefined && typeof config.autoSync !== 'boolean') {
+      errors.push('autoSync 必须是布尔值');
     }
 
     if (errors.length > 0) {

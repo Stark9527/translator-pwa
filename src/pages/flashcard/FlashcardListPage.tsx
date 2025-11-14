@@ -400,7 +400,7 @@ export default function FlashcardListPage() {
       {/* 头部 */}
       <div className="px-4 py-2 border-b border-border bg-background">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-bold text-foreground">卡片</h1>
+          <h1 className="text-lg font-bold text-foreground"></h1>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"

@@ -7,8 +7,12 @@ import FlashcardListPage from './pages/flashcard/FlashcardListPage';
 import StudyPage from './pages/flashcard/StudyPage';
 import StatisticsPage from './pages/flashcard/StatisticsPage';
 import GroupManagePage from './pages/flashcard/GroupManagePage';
+import { useTheme } from './hooks/useTheme';
 
 function App() {
+  // 应用主题管理
+  useTheme();
+
   return (
     <Router>
       <Routes>

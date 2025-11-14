@@ -4,6 +4,7 @@ import { BottomNav } from './BottomNav';
 import { InstallPrompt } from '../InstallPrompt';
 import { Toaster } from '@/components/ui/toaster';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * 应用主布局组件
@@ -13,17 +14,16 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnline = useOnlineStatus();
+  const { user, isSyncing } = useAuth();
 
-  // TODO: 从实际的状态管理中获取这些值
-  const isSyncing = false;
-  const userEmail = null; // 从 Supabase Auth 获取
+  const userEmail = user?.email || null;
 
   // 根据当前路由显示不同的标题
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/') return '翻译';
-    if (path.startsWith('/flashcards')) return 'Flashcard';
-    if (path.startsWith('/statistics')) return '学习统计';
+    if (path.startsWith('/flashcards')) return '卡片';
+    if (path.startsWith('/statistics')) return '统计';
     if (path.startsWith('/settings')) return '设置';
     if (path.startsWith('/login')) return '登录';
     return '翻译助手';

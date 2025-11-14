@@ -14,13 +14,38 @@ import {
   ExternalLink,
   AlertCircle,
   Loader2,
+  BookOpen,
+  RefreshCw,
+  Cloud,
+  CloudOff,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { ConfigService } from '@/services/config/ConfigService';
+import { flashcardService } from '@/services/flashcard/FlashcardService';
+import { syncService } from '@/services/sync/SyncService';
 import { useToast } from '@/hooks/useToast';
-import type { TranslationEngine, UserConfig } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import type { TranslationEngine, UserConfig, LanguageCode } from '@/types';
+import type { FlashcardGroup } from '@/types/flashcard';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
+
+/**
+ * 语言选项
+ */
+const LANGUAGE_OPTIONS: { value: LanguageCode; label: string }[] = [
+  { value: 'auto', label: '自动检测' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'zh-TW', label: '繁体中文' },
+  { value: 'en', label: '英语' },
+  { value: 'ja', label: '日语' },
+  { value: 'ko', label: '韩语' },
+  { value: 'fr', label: '法语' },
+  { value: 'de', label: '德语' },
+  { value: 'es', label: '西班牙语' },
+  { value: 'ru', label: '俄语' },
+  { value: 'it', label: '意大利语' },
+];
 
 /**
  * 设置页面
@@ -29,20 +54,32 @@ type ThemeMode = 'light' | 'dark' | 'auto';
 export function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAuthenticated, signOut: authSignOut } = useAuth();
   const [theme, setTheme] = useState<ThemeMode>('auto');
   const [engine, setEngine] = useState<TranslationEngine>('google');
+  const [defaultSourceLang, setDefaultSourceLang] = useState<LanguageCode>('auto');
+  const [defaultTargetLang, setDefaultTargetLang] = useState<LanguageCode>('zh-CN');
+  const [defaultFlashcardGroupId, setDefaultFlashcardGroupId] = useState<string>('default');
+  const [flashcardGroups, setFlashcardGroups] = useState<FlashcardGroup[]>([]);
   const [googleApiKey, setGoogleApiKey] = useState('');
   const [deeplApiKey, setDeeplApiKey] = useState('');
   const [microsoftApiKey, setMicrosoftApiKey] = useState('');
   const [microsoftRegion, setMicrosoftRegion] = useState('global');
   const [enableDictionary, setEnableDictionary] = useState(true);
+  const [autoSync, setAutoSync] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [storageQuota, setStorageQuota] = useState({
+    used: 0,
+    total: 5 * 1024 * 1024,
+    percentage: 0,
+  });
 
-  // TODO: 从实际的状态管理中获取这些值
-  const userEmail = null;
-  const isLoggedIn = false;
+  const userEmail = user?.email || null;
+  const isLoggedIn = isAuthenticated;
 
   // 加载配置
   useEffect(() => {
@@ -55,11 +92,27 @@ export function SettingsPage() {
       const config = await ConfigService.getConfig();
       setEngine(config.engine);
       setTheme(config.theme || 'auto');
+      setDefaultSourceLang(config.defaultSourceLang);
+      setDefaultTargetLang(config.defaultTargetLang);
+      setDefaultFlashcardGroupId(config.defaultFlashcardGroupId || 'default');
       setGoogleApiKey(config.googleApiKey || '');
       setDeeplApiKey(config.deeplApiKey || '');
       setMicrosoftApiKey(config.microsoftApiKey || '');
       setMicrosoftRegion(config.microsoftRegion || 'global');
       setEnableDictionary(config.enableDictionary !== false);
+      setAutoSync(config.autoSync !== false);
+
+      // 加载存储配额信息
+      const quota = await ConfigService.getStorageQuota();
+      setStorageQuota(quota);
+
+      // 加载最后同步时间
+      const syncTime = syncService.getLastSyncTime();
+      setLastSyncTime(syncTime > 0 ? syncTime : null);
+
+      // 加载 Flashcard 分组
+      const groups = await flashcardService.getAllGroups();
+      setFlashcardGroups(groups);
     } catch (err) {
       console.error('Failed to load config:', err);
       setError('加载配置失败');
@@ -76,14 +129,22 @@ export function SettingsPage() {
       const config: Partial<UserConfig> = {
         engine,
         theme,
+        defaultSourceLang,
+        defaultTargetLang,
+        defaultFlashcardGroupId,
         googleApiKey: googleApiKey.trim() || undefined,
         deeplApiKey: deeplApiKey.trim() || undefined,
         microsoftApiKey: microsoftApiKey.trim() || undefined,
         microsoftRegion: microsoftRegion.trim() || undefined,
         enableDictionary,
+        autoSync,
       };
 
       await ConfigService.saveConfig(config);
+
+      // 更新存储配额信息
+      const quota = await ConfigService.getStorageQuota();
+      setStorageQuota(quota);
 
       toast({
         variant: 'success',
@@ -98,13 +159,23 @@ export function SettingsPage() {
     }
   };
 
-  const handleLogout = () => {
-    // TODO: 调用 Supabase 登出
-    toast({
-      variant: 'default',
-      title: '登出功能开发中',
-      duration: 2000,
-    });
+  const handleLogout = async () => {
+    try {
+      await authSignOut();
+      toast({
+        variant: 'success',
+        title: '已成功登出',
+        duration: 2000,
+      });
+      navigate('/');
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: '登出失败',
+        description: err instanceof Error ? err.message : '未知错误',
+        duration: 3000,
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -123,6 +194,64 @@ export function SettingsPage() {
       title: '导入功能开发中',
       duration: 2000,
     });
+  };
+
+  const handleManualSync = async () => {
+    if (!isLoggedIn) {
+      toast({
+        variant: 'destructive',
+        title: '请先登录',
+        description: '同步功能需要登录账户',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      const result = await syncService.sync();
+
+      setLastSyncTime(result.timestamp);
+
+      toast({
+        variant: 'success',
+        title: '同步完成',
+        description: `上传 ${result.uploadedCount} 项，下载 ${result.downloadedCount} 项`,
+        duration: 3000,
+      });
+    } catch (err) {
+      console.error('同步失败:', err);
+      toast({
+        variant: 'destructive',
+        title: '同步失败',
+        description: err instanceof Error ? err.message : '未知错误',
+        duration: 3000,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const formatSyncTime = (timestamp: number | null): string => {
+    if (!timestamp) {
+      return '从未同步';
+    }
+
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) {
+      return '刚刚';
+    } else if (minutes < 60) {
+      return `${minutes} 分钟前`;
+    } else if (hours < 24) {
+      return `${hours} 小时前`;
+    } else {
+      return `${days} 天前`;
+    }
   };
 
   if (isLoading) {
@@ -189,6 +318,89 @@ export function SettingsPage() {
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </button>
             )}
+          </div>
+        </section>
+
+        {/* 默认设置 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">默认设置</h2>
+          <div className="bg-card border border-border rounded-lg divide-y divide-border">
+            {/* 源语言 */}
+            <div className="p-4 space-y-3">
+              <label className="font-medium">源语言</label>
+              <select
+                value={defaultSourceLang}
+                onChange={(e) => setDefaultSourceLang(e.target.value as LanguageCode)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {LANGUAGE_OPTIONS.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 目标语言 */}
+            <div className="p-4 space-y-3">
+              <label className="font-medium">目标语言</label>
+              <select
+                value={defaultTargetLang}
+                onChange={(e) => setDefaultTargetLang(e.target.value as LanguageCode)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {LANGUAGE_OPTIONS.filter((lang) => lang.value !== 'auto').map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 默认 Flashcard 分组 */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-muted-foreground" />
+                <label className="font-medium">默认 Flashcard 分组</label>
+              </div>
+              <select
+                value={defaultFlashcardGroupId}
+                onChange={(e) => setDefaultFlashcardGroupId(e.target.value)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {flashcardGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name} ({group.cardCount} 张卡片)
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                从翻译页或划词翻译添加到卡片时,将自动保存到此分组
+              </p>
+            </div>
+
+            {/* 保存按钮 */}
+            <div className="p-4">
+              <button
+                onClick={saveConfig}
+                disabled={isSaving}
+                className={cn(
+                  'w-full px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2',
+                  isSaving
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  '保存默认设置'
+                )}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -414,6 +626,123 @@ export function SettingsPage() {
           </div>
         </section>
 
+        {/* 同步设置 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">同步设置</h2>
+          <div className="bg-card border border-border rounded-lg divide-y divide-border">
+            {/* 自动同步开关 */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-2">
+                  {autoSync ? (
+                    <Cloud className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <CloudOff className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium">自动同步</div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {isLoggedIn
+                        ? '开启后，卡片、卡组和学习数据将自动同步到云端'
+                        : '需要登录后才能使用同步功能'}
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoSync}
+                    onChange={(e) => setAutoSync(e.target.checked)}
+                    disabled={!isLoggedIn}
+                    className="sr-only peer"
+                  />
+                  <div className={cn(
+                    "w-11 h-6 rounded-full transition-colors",
+                    "peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2",
+                    autoSync && isLoggedIn
+                      ? "bg-primary"
+                      : "bg-muted",
+                    !isLoggedIn && "opacity-50 cursor-not-allowed"
+                  )}>
+                    <div className={cn(
+                      "absolute top-0.5 left-0.5 bg-white rounded-full h-5 w-5 transition-transform",
+                      autoSync && "translate-x-5"
+                    )} />
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* 同步状态和手动同步 */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className={cn(
+                    "w-5 h-5",
+                    isSyncing && "animate-spin text-primary"
+                  )} />
+                  <div>
+                    <div className="font-medium">手动同步</div>
+                    <p className="text-xs text-muted-foreground">
+                      上次同步: {formatSyncTime(lastSyncTime)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleManualSync}
+                  disabled={!isLoggedIn || isSyncing}
+                  className={cn(
+                    'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
+                    !isLoggedIn || isSyncing
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  )}
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      同步中...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      立即同步
+                    </>
+                  )}
+                </button>
+              </div>
+              {!isLoggedIn && (
+                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                  💡 提示: 登录后可以在多个设备间同步你的学习数据
+                </p>
+              )}
+            </div>
+
+            {/* 保存按钮 */}
+            <div className="p-4">
+              <button
+                onClick={saveConfig}
+                disabled={isSaving}
+                className={cn(
+                  'w-full px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2',
+                  isSaving
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  '保存同步配置'
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* 数据管理 */}
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">数据管理</h2>
@@ -446,10 +775,10 @@ export function SettingsPage() {
                 <span className="font-medium">存储空间</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                已使用 2.3 MB / 5 MB
+                已使用 {(storageQuota.used / 1024 / 1024).toFixed(2)} MB / {(storageQuota.total / 1024 / 1024).toFixed(0)} MB
               </p>
               <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary w-[46%]" />
+                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${storageQuota.percentage}%` }} />
               </div>
             </div>
           </div>
