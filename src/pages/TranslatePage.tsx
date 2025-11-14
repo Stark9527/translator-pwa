@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeftRight, Volume2, BookmarkPlus, Loader2, Check, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeftRight, Volume2, BookmarkPlus, Loader2, Check, AlertCircle, Settings } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { SUPPORTED_LANGUAGES } from '@/utils/constants';
 import { TranslatorFactory } from '@/services/translator/TranslatorFactory';
@@ -12,6 +13,7 @@ import type { TranslateResult, LanguageCode, UserConfig } from '@/types';
  * 全屏翻译界面，底部输入框，翻译结果展示
  */
 export function TranslatePage() {
+  const navigate = useNavigate();
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [translationResult, setTranslationResult] = useState<TranslateResult | null>(null);
@@ -20,6 +22,7 @@ export function TranslatePage() {
   const [targetLang, setTargetLang] = useState<LanguageCode>('zh-CN');
   const [config, setConfig] = useState<UserConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsApiKey, setNeedsApiKey] = useState(false);
   const [addingToFlashcard, setAddingToFlashcard] = useState(false);
   const [flashcardAdded, setFlashcardAdded] = useState(false);
 
@@ -37,6 +40,7 @@ export function TranslatePage() {
 
     setIsTranslating(true);
     setError(null);
+    setNeedsApiKey(false);
     setFlashcardAdded(false);
 
     try {
@@ -46,6 +50,11 @@ export function TranslatePage() {
       // 检查翻译器是否可用
       const isAvailable = await translator.isAvailable();
       if (!isAvailable) {
+        // 检查是否缺少 API Key
+        if (!config.googleApiKey && config.engine === 'google') {
+          setNeedsApiKey(true);
+          throw new Error(`需要配置 Google API Key 才能使用翻译服务`);
+        }
         throw new Error(`翻译服务不可用，请检查 API 配置`);
       }
 
@@ -61,7 +70,13 @@ export function TranslatePage() {
       setTranslatedText(result.translation);
     } catch (error) {
       console.error('Translation error:', error);
-      setError(error instanceof Error ? error.message : '翻译失败，请重试');
+      const errorMessage = error instanceof Error ? error.message : '翻译失败，请重试';
+      setError(errorMessage);
+
+      // 检查是否是 API Key 相关错误
+      if (errorMessage.includes('API Key') || errorMessage.includes('401')) {
+        setNeedsApiKey(true);
+      }
     } finally {
       setIsTranslating(false);
     }
@@ -185,17 +200,31 @@ export function TranslatePage() {
     <div className="flex flex-col h-full bg-background">
       {/* 错误提示 */}
       {error && (
-        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-destructive">{error}</p>
+        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+            <button
+              onClick={() => {
+                setError(null);
+                setNeedsApiKey(false);
+              }}
+              className="text-destructive hover:text-destructive/80 text-xl leading-none"
+            >
+              ×
+            </button>
           </div>
-          <button
-            onClick={() => setError(null)}
-            className="text-destructive hover:text-destructive/80 text-xl leading-none"
-          >
-            ×
-          </button>
+          {needsApiKey && (
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
+            >
+              <Settings className="w-4 h-4" />
+              前往设置页面配置 API Key
+            </button>
+          )}
         </div>
       )}
 
@@ -253,7 +282,7 @@ export function TranslatePage() {
         {translatedText ? (
           <div className="p-4 space-y-4">
             {/* 原文 */}
-            <div className="bg-muted/50 rounded-lg p-4">
+            <div className="bg-muted/50 rounded-lg py-2 px-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">原文</span>
                 <button
@@ -268,7 +297,7 @@ export function TranslatePage() {
             </div>
 
             {/* 译文 */}
-            <div className="bg-primary/5 rounded-lg p-4">
+            <div className="bg-primary/5 rounded-lg py-2 px-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">译文</span>
                 <div className="flex items-center gap-2">
@@ -279,25 +308,28 @@ export function TranslatePage() {
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={handleAddToFlashcard}
-                    disabled={addingToFlashcard || flashcardAdded}
-                    className={cn(
-                      'p-1 rounded transition-colors',
-                      addingToFlashcard || flashcardAdded
-                        ? 'cursor-not-allowed opacity-50'
-                        : 'hover:bg-accent'
-                    )}
-                    aria-label="添加到 Flashcard"
-                  >
-                    {addingToFlashcard ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : flashcardAdded ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <BookmarkPlus className="w-4 h-4" />
-                    )}
-                  </button>
+                  {/* 只有在没有字典信息时才显示添加按钮 */}
+                  {(!translationResult?.meanings || translationResult.meanings.length === 0) && (
+                    <button
+                      onClick={handleAddToFlashcard}
+                      disabled={addingToFlashcard || flashcardAdded}
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        addingToFlashcard || flashcardAdded
+                          ? 'cursor-not-allowed opacity-50'
+                          : 'hover:bg-accent'
+                      )}
+                      aria-label="添加到 Flashcard"
+                    >
+                      {addingToFlashcard ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : flashcardAdded ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <BookmarkPlus className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
               <p className="text-foreground leading-relaxed font-medium">
@@ -314,62 +346,103 @@ export function TranslatePage() {
                       {translationResult.text}
                     </h3>
                     {translationResult.phonetic && (
-                      <span className="text-sm text-muted-foreground">
-                        {translationResult.phonetic}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm text-muted-foreground">
+                          {translationResult.phonetic}
+                        </span>
+                        <button
+                          onClick={() => handlePlayAudio(translationResult.text, translationResult.from)}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          aria-label="发音"
+                        >
+                          <Volume2 className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={handleAddToFlashcard}
+                          disabled={addingToFlashcard || flashcardAdded}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            addingToFlashcard || flashcardAdded
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'hover:bg-accent'
+                          )}
+                          aria-label="添加到卡片"
+                        >
+                          {addingToFlashcard ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : flashcardAdded ? (
+                            <Check className="w-3.5 h-3.5 text-green-600" />
+                          ) : (
+                            <BookmarkPlus className="w-3.5 h-3.5 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* 按词性分组的释义 */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {translationResult.meanings.map((meaning, idx) => (
-                    <div key={idx} className="space-y-2">
-                      <div className="text-sm font-medium text-primary">
-                        {meaning.partOfSpeechCN}
+                    <div key={idx} className="space-y-1.5">
+                      {/* 词性和翻译内容 - 单行显示 */}
+                      <div className="text-foreground">
+                        <span className="font-medium text-primary mr-1">
+                          {meaning.partOfSpeech}.
+                        </span>
+                        <span className="leading-relaxed">
+                          {meaning.translations.map((trans, transIdx) => (
+                            <span key={transIdx}>
+                              {transIdx > 0 && '；'}
+                              {trans.text}
+                            </span>
+                          ))}
+                        </span>
                       </div>
 
-                      {/* 翻译列表 */}
-                      <div className="space-y-2">
-                        {meaning.translations.map((trans, transIdx) => (
-                          <div key={transIdx} className="pl-4">
-                            <div className="flex items-start gap-2">
-                              <span className="text-muted-foreground text-sm mt-0.5">
-                                {transIdx + 1}.
-                              </span>
-                              <div className="flex-1">
-                                <div className="text-foreground">
-                                  {trans.text}
-                                  {trans.definition && (
-                                    <span className="text-muted-foreground text-sm ml-2">
-                                      ({trans.definition})
-                                    </span>
+                      {/* 例句展示 - 收集所有例句统一显示 */}
+                      {(() => {
+                        // 收集该词性下所有翻译项的例句
+                        const allExamples = meaning.translations
+                          .flatMap(trans => trans.examples || []);
+
+                        return allExamples.length > 0 && (
+                          <div className="bg-accent/50 rounded-lg p-1 space-y-2 mt-2">
+                            {allExamples.map((example, exIdx) => (
+                              <div key={exIdx} className="pl-2 space-y-0.5">
+                                {/* 英文例句 - 高亮关键词 */}
+                                <div className="text-sm text-muted-foreground leading-relaxed">
+                                  {example.sourceTerm ? (
+                                    <>
+                                      {example.sourcePrefix}
+                                      <span className="font-semibold text-foreground">
+                                        {example.sourceTerm}
+                                      </span>
+                                      {example.sourceSuffix}
+                                    </>
+                                  ) : (
+                                    example.source
                                   )}
                                 </div>
-
-                                {/* 例句 */}
-                                {trans.examples && trans.examples.length > 0 && (
-                                  <div className="mt-2 space-y-1">
-                                    {trans.examples.map((example, exIdx) => (
-                                      <div
-                                        key={exIdx}
-                                        className="text-sm bg-muted/30 rounded p-2"
-                                      >
-                                        <div className="text-muted-foreground">
-                                          {example.source}
-                                        </div>
-                                        <div className="text-foreground">
-                                          {example.target}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                {/* 中文例句 - 高亮关键词 */}
+                                <div className="text-sm text-muted-foreground leading-relaxed">
+                                  {example.targetTerm ? (
+                                    <>
+                                      {example.targetPrefix}
+                                      <span className="font-semibold text-foreground">
+                                        {example.targetTerm}
+                                      </span>
+                                      {example.targetSuffix}
+                                    </>
+                                  ) : (
+                                    example.target
+                                  )}
+                                </div>
                               </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -388,12 +461,12 @@ export function TranslatePage() {
       </div>
 
       {/* 输入框区域 */}
-      <div className="border-t border-border bg-background p-4 space-y-3">
+      <div className="border-t border-border bg-background p-4 space-y-2">
         <textarea
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value)}
           placeholder="输入要翻译的文本..."
-          className="w-full min-h-[100px] p-3 bg-muted/50 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+          className="w-full min-h-[60px] p-2 bg-muted/50 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
@@ -411,7 +484,7 @@ export function TranslatePage() {
             onClick={handleTranslate}
             disabled={!sourceText.trim() || isTranslating}
             className={cn(
-              'px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
+              'px-4 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm',
               !sourceText.trim() || isTranslating
                 ? 'bg-muted text-muted-foreground cursor-not-allowed'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'

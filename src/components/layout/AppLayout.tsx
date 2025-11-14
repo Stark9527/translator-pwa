@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { InstallPrompt } from '../InstallPrompt';
+import { Toaster } from '@/components/ui/toaster';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 /**
@@ -59,6 +60,9 @@ export function AppLayout() {
 
       {/* PWA 安装提示 */}
       <InstallPrompt />
+
+      {/* Toast 通知 */}
+      <Toaster />
     </div>
   );
 }

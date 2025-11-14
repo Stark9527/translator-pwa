@@ -19,6 +19,14 @@ export class TranslatorFactory {
     // 创建新实例（不再使用单例模式，因为配置可能变化）
     let translator: ITranslator;
 
+    console.log('[TranslatorFactory] 创建翻译器:', {
+      engine,
+      enableDictionary: config.enableDictionary,
+      hasGoogleKey: !!config.googleApiKey,
+      hasMicrosoftKey: !!config.microsoftApiKey,
+      microsoftRegion: config.microsoftRegion
+    });
+
     switch (engine) {
       case 'google': {
         // 如果配置了 Microsoft API Key 且启用词典功能，使用智能词典翻译器
@@ -26,6 +34,7 @@ export class TranslatorFactory {
         const hasMicrosoftKey = !!config.microsoftApiKey;
 
         if (enableDictionary && hasMicrosoftKey && config.googleApiKey) {
+          console.log('[TranslatorFactory] 使用 DictionaryTranslator（智能词典）');
           translator = new DictionaryTranslator(
             config.googleApiKey,
             config.microsoftApiKey,
@@ -34,6 +43,7 @@ export class TranslatorFactory {
           );
         } else {
           // 否则使用普通的 Google 翻译器
+          console.log('[TranslatorFactory] 使用 GoogleTranslator（普通翻译）');
           translator = new GoogleTranslator(config.googleApiKey);
         }
         break;

@@ -48,26 +48,47 @@ export class DictionaryTranslator implements ITranslator {
   async translate(params: TranslateParams): Promise<TranslateResult> {
     const { text, from, to } = params;
 
+    // 调试日志：输入参数
+    console.log('[DictionaryTranslator] 翻译参数:', { text, from, to });
+    console.log('[DictionaryTranslator] 词典功能状态:', {
+      enableDictionary: this.enableDictionary,
+      hasMicrosoftService: !!this.microsoftDictService,
+      isWord: isWord(text),
+      isFromEnOrAuto: from === 'en' || from === 'auto',
+      isToZhCN: to === 'zh-CN'
+    });
+
     // 判断是否应该使用词典API
+    // 条件：启用词典 && 有MS服务 && 是单词 && (源语言是en或auto) && 目标是zh-CN
     const shouldUseDictionary =
       this.enableDictionary &&
       this.microsoftDictService &&
       isWord(text) &&
-      from === 'en' &&
+      (from === 'en' || from === 'auto') &&  // 允许 auto，因为单词通常是英文
       to === 'zh-CN';
+
+    console.log('[DictionaryTranslator] 是否使用词典API:', shouldUseDictionary);
 
     if (shouldUseDictionary) {
       try {
+        console.log('[DictionaryTranslator] 开始调用词典API...');
         // 尝试使用词典API
-        return await this.dictionaryTranslate(params);
+        const result = await this.dictionaryTranslate(params);
+        console.log('[DictionaryTranslator] 词典API返回结果:', {
+          hasPhonetic: !!result.phonetic,
+          hasMeanings: !!result.meanings,
+          meaningsCount: result.meanings?.length || 0
+        });
+        return result;
       } catch (error) {
         // 词典查询失败，降级到Google翻译
-        console.warn('词典查询失败，降级到Google翻译:', error);
+        console.warn('[DictionaryTranslator] 词典查询失败，降级到Google翻译:', error);
         return await this.googleTranslator.translate(params);
       }
     }
 
     // 使用Google翻译
+    console.log('[DictionaryTranslator] 使用普通Google翻译');
     return await this.googleTranslator.translate(params);
   }
 
@@ -75,7 +96,14 @@ export class DictionaryTranslator implements ITranslator {
    * 词典翻译：结合 Microsoft Dictionary 和 Free Dictionary
    */
   private async dictionaryTranslate(params: TranslateParams): Promise<TranslateResult> {
-    const { text, from, to } = params;
+    const { text, to } = params;
+    let { from } = params;
+
+    // 如果源语言是 auto，对于单词查询，默认视为英文
+    if (from === 'auto') {
+      from = 'en';
+      console.log('[DictionaryTranslator] 源语言从 auto 转换为 en');
+    }
 
     // 并行调用两个词典API
     const [msResult, freeDictResult] = await Promise.allSettled([
