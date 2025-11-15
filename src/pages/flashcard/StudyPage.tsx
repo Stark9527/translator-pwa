@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Rating, Grade } from 'ts-fsrs';
-import { Play, RotateCcw, X, GraduationCap, AlertTriangle } from 'lucide-react';
+import { Play, RotateCcw, ArrowLeft, X, GraduationCap, AlertTriangle } from 'lucide-react';
 import type { Flashcard, FlashcardGroup } from '@/types/flashcard';
 import { studySessionService, flashcardService } from '@/services/flashcard';
 import { StudyCard } from '@/components/flashcard/StudyCard';
@@ -8,6 +8,7 @@ import { ProgressRing } from '@/components/flashcard/ProgressRing';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ const ratingButtons: Array<{ rating: Grade; label: string; shortcut: string; col
 ];
 
 export default function StudyPage() {
+  const navigate = useNavigate();
   const [currentCard, setCurrentCard] = useState<Flashcard | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -231,99 +233,104 @@ export default function StudyPage() {
   // 未开始状态
   if (!isSessionActive) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <Icon icon={GraduationCap} size="xl" className="text-primary mb-4" />
-        <h2 className="text-2xl font-bold text-foreground mb-2">开始学习</h2>
+      <TooltipProvider>
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigate('/flashcards')}
+                  >
+                    <Icon icon={ArrowLeft} size="sm" className="text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>返回</p>
+                </TooltipContent>
+              </Tooltip>
+          <Icon icon={GraduationCap} size="xl" className="text-primary mb-4" />
+          <h2 className="text-2xl font-bold text-foreground mb-2">开始学习</h2>
 
-        {/* 分组选择器 */}
-        <div className="mb-4 w-full max-w-xs">
-          <label className="block text-sm font-medium text-foreground mb-2">
-            选择学习范围
-          </label>
-          <select
-            value={selectedGroupId}
-            onChange={(e) => {
-              const groupId = e.target.value;
-              setSelectedGroupId(groupId);
-              if (groupId === 'all') {
-                setSelectedGroupName('全部分组');
-              } else {
-                const group = groups.find(g => g.id === groupId);
-                setSelectedGroupName(group?.name || '');
-              }
-              // 更新可学习的卡片数量
-              checkAvailableCards(groupId);
-            }}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          {/* 分组选择器 */}
+          <div className="mb-4 w-full max-w-xs">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              选择学习范围
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => {
+                const groupId = e.target.value;
+                setSelectedGroupId(groupId);
+                if (groupId === 'all') {
+                  setSelectedGroupName('全部分组');
+                } else {
+                  const group = groups.find(g => g.id === groupId);
+                  setSelectedGroupName(group?.name || '');
+                }
+                // 更新可学习的卡片数量
+                checkAvailableCards(groupId);
+              }}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">全部分组</option>
+              {groups.map(group => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 可学习卡片数量提示 */}
+          {isCheckingCards ? (
+            <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
+              <p className="text-sm text-muted-foreground text-center">
+                正在检查可学习的卡片...
+              </p>
+            </div>
+          ) : newCardsCount + reviewCardsCount > 0 ? (
+            <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
+              <p className="text-sm text-muted-foreground text-center">
+                {newCardsCount > 0 && reviewCardsCount > 0 && (
+                  <>
+                    有 <span className="font-semibold text-green-600">{newCardsCount}</span> 张新卡片，
+                    <span className="font-semibold text-orange-600">{reviewCardsCount}</span> 张卡片需要复习
+                  </>
+                )}
+                {newCardsCount > 0 && reviewCardsCount === 0 && (
+                  <>
+                    有 <span className="font-semibold text-green-600">{newCardsCount}</span> 张新卡片待学习
+                  </>
+                )}
+                {newCardsCount === 0 && reviewCardsCount > 0 && (
+                  <>
+                    有 <span className="font-semibold text-orange-600">{reviewCardsCount}</span> 张卡片需要复习
+                  </>
+                )}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
+              <p className="text-sm text-muted-foreground text-center">
+                暂时没有需要学习、复习的卡片 📚
+              </p>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                所有卡片都已完成，明天再来吧！
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={startSession}
+            disabled={isLoading || isCheckingCards || (newCardsCount + reviewCardsCount === 0)}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="all">全部分组</option>
-            {groups.map(group => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+            <Icon icon={Play} size="sm" />
+            <span>{isLoading ? '加载中...' : '开始学习'}</span>
+          </button>
         </div>
-
-        {/* 可学习卡片数量提示 */}
-        {isCheckingCards ? (
-          <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
-            <p className="text-sm text-muted-foreground text-center">
-              正在检查可学习的卡片...
-            </p>
-          </div>
-        ) : newCardsCount + reviewCardsCount > 0 ? (
-          <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
-            <p className="text-sm text-muted-foreground text-center">
-              {newCardsCount > 0 && reviewCardsCount > 0 && (
-                <>
-                  有 <span className="font-semibold text-green-600">{newCardsCount}</span> 张新卡片，
-                  <span className="font-semibold text-orange-600">{reviewCardsCount}</span> 张卡片需要复习
-                </>
-              )}
-              {newCardsCount > 0 && reviewCardsCount === 0 && (
-                <>
-                  有 <span className="font-semibold text-green-600">{newCardsCount}</span> 张新卡片待学习
-                </>
-              )}
-              {newCardsCount === 0 && reviewCardsCount > 0 && (
-                <>
-                  有 <span className="font-semibold text-orange-600">{reviewCardsCount}</span> 张卡片需要复习
-                </>
-              )}
-            </p>
-          </div>
-        ) : (
-          <div className="mb-4 p-4 bg-muted rounded-lg max-w-md">
-            <p className="text-sm text-muted-foreground text-center">
-              暂时没有需要学习、复习的卡片 📚
-            </p>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              所有卡片都已完成，明天再来吧！
-            </p>
-          </div>
-        )}
-
-        <button
-          onClick={startSession}
-          disabled={isLoading || isCheckingCards || (newCardsCount + reviewCardsCount === 0)}
-          className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Icon icon={Play} size="sm" />
-          <span>{isLoading ? '加载中...' : '开始学习'}</span>
-        </button>
-
-        <div className="mt-8 p-4 bg-muted rounded-lg max-w-md">
-          <h3 className="text-sm font-medium text-foreground mb-2">快捷键提示</h3>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li><kbd className="px-1.5 py-0.5 bg-background border border-border rounded">空格</kbd> - 翻转卡片</li>
-            <li><kbd className="px-1.5 py-0.5 bg-background border border-border rounded">1</kbd> - 重来（完全忘记）</li>
-            <li><kbd className="px-1.5 py-0.5 bg-background border border-border rounded">2</kbd> - 困难（勉强记得）</li>
-            <li><kbd className="px-1.5 py-0.5 bg-background border border-border rounded">3</kbd> - 良好（记得清楚）</li>
-            <li><kbd className="px-1.5 py-0.5 bg-background border border-border rounded">4</kbd> - 简单（太简单了）</li>
-          </ul>
-        </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
@@ -416,7 +423,7 @@ export default function StudyPage() {
         {/* 答题按钮（只在翻转后显示） */}
         {isFlipped && (
           <div className="mt-4 flex gap-3">
-            {ratingButtons.map(({ rating, label, shortcut, color }) => (
+            {ratingButtons.map(({ rating, label, color }) => (
               <button
                 key={rating}
                 onClick={() => submitAnswer(rating)}
@@ -427,7 +434,6 @@ export default function StudyPage() {
               >
                 <div className="text-center">
                   <div className="text-lg">{label}</div>
-                  <div className="text-xs opacity-75">按 {shortcut}</div>
                 </div>
               </button>
             ))}
@@ -437,7 +443,7 @@ export default function StudyPage() {
         {/* 提示文字 */}
         {!isFlipped && (
           <div className="mt-6 text-sm text-muted-foreground">
-            按<kbd className="px-1.5 py-0.5 mx-1 bg-muted border border-border rounded text-foreground">空格</kbd>或点击卡片查看答案
+            点击卡片查看答案
           </div>
         )}
       </div>

@@ -63,10 +63,6 @@ export function StudyCard({ flashcard, isFlipped, onFlip }: StudyCardProps) {
               </button>
             </div>
           </div>
-
-          <div className="absolute bottom-6 text-sm text-muted-foreground">
-            点击卡片或按空格键查看答案
-          </div>
         </div>
 
         {/* 背面 - 翻译和例句 */}
