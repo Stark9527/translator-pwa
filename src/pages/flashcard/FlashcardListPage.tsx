@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, SortAsc, Library, Settings, CheckSquare, X, Trash2, FolderInput, Download, Upload } from 'lucide-react';
+import { Search, SortAsc, Library, Settings, CheckSquare, X, Trash2, FolderInput, Download, Upload, GraduationCap } from 'lucide-react';
 import type { Flashcard, FlashcardGroup } from '@/types/flashcard';
 import { ProficiencyLevel } from '@/types/flashcard';
 import { flashcardService } from '@/services/flashcard';
@@ -411,6 +411,14 @@ export default function FlashcardListPage() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-foreground"></h1>
           <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => navigate('/flashcards/study')}
+            >
+              <Icon icon={GraduationCap} size="xs" />
+              <span className="ml-1">学习</span>
+            </Button>
             <Button
               variant="secondary"
               size="sm"
