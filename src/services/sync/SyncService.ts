@@ -13,6 +13,7 @@ import type { LanguageCode, TranslationEngine } from '@/types';
 import { ProficiencyLevel } from '@/types/flashcard';
 import { supabaseService } from './SupabaseService';
 import { flashcardDB } from '../flashcard/FlashcardDB';
+import { ConfigService } from '../config/ConfigService';
 
 /**
  * FSRS State 映射（本地 <-> 云端）
@@ -80,6 +81,9 @@ export class SyncService {
 
       result.status = SyncStatus.Success;
       this.lastSyncTime = Date.now();
+
+      // 保存同步时间到配置
+      await ConfigService.saveConfig({ lastSyncTime: this.lastSyncTime });
 
       console.info('✅ 同步完成:', result);
       return result;
@@ -417,10 +421,11 @@ export class SyncService {
   }
 
   /**
-   * 获取上次同步时间
+   * 获取上次同步时间（从配置中读取）
    */
-  getLastSyncTime(): number {
-    return this.lastSyncTime;
+  async getLastSyncTime(): Promise<number> {
+    const config = await ConfigService.getConfig();
+    return config.lastSyncTime || 0;
   }
 
   /**
@@ -492,6 +497,38 @@ export class SyncService {
       console.debug('✅ 卡片已从云端删除（软删除）:', cardId);
     } catch (error) {
       console.error('❌ 删除云端卡片失败（静默忽略）:', error);
+      // 静默失败，不影响本地操作
+    }
+  }
+
+  /**
+   * 从云端批量删除 Flashcards（软删除）
+   * 用于批量删除，静默执行，不抛出错误
+   * 使用 Supabase 的 .in() 方法一次性删除多张卡片，避免大量网络请求
+   */
+  async batchDeleteFlashcardsFromCloud(cardIds: string[]): Promise<void> {
+    // 如果未登录或没有卡片，跳过同步
+    if (!supabaseService.isAuthenticated() || cardIds.length === 0) {
+      return;
+    }
+
+    try {
+      const client = supabaseService.getClient();
+      const { error } = await client
+        .from('flashcards')
+        .update({
+          deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
+        .in('id', cardIds);
+
+      if (error) {
+        throw new Error(`批量删除云端卡片失败: ${error.message}`);
+      }
+
+      console.debug(`✅ ${cardIds.length} 张卡片已从云端删除（软删除）`);
+    } catch (error) {
+      console.error('❌ 批量删除云端卡片失败（静默忽略）:', error);
       // 静默失败，不影响本地操作
     }
   }

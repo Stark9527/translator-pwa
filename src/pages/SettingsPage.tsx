@@ -107,7 +107,7 @@ export function SettingsPage() {
       setStorageQuota(quota);
 
       // 加载最后同步时间
-      const syncTime = syncService.getLastSyncTime();
+      const syncTime = await syncService.getLastSyncTime();
       setLastSyncTime(syncTime > 0 ? syncTime : null);
 
       // 加载 Flashcard 分组
@@ -643,7 +643,7 @@ export function SettingsPage() {
                     <div className="font-medium">自动同步</div>
                     <p className="text-sm text-muted-foreground mt-1">
                       {isLoggedIn
-                        ? '开启后，卡片、卡组和学习数据将自动同步到云端'
+                        ? '开启后，数据变化会在 1 秒后自动上传，每 10 分钟自动从云端同步数据'
                         : '需要登录后才能使用同步功能'}
                     </p>
                   </div>
@@ -684,7 +684,7 @@ export function SettingsPage() {
                   <div>
                     <div className="font-medium">手动同步</div>
                     <p className="text-xs text-muted-foreground">
-                      上次同步: {formatSyncTime(lastSyncTime)}
+                      最近一次从云端同步: {formatSyncTime(lastSyncTime)}
                     </p>
                   </div>
                 </div>

@@ -242,9 +242,9 @@ export class FlashcardService {
       await this.updateGroupCardCount(groupId);
     }
 
-    // 实时从云端批量删除
+    // 实时从云端批量删除（使用批量方法，一次网络请求）
     if (await this.shouldAutoSync()) {
-      ids.forEach(id => syncService.deleteFlashcardFromCloud(id));
+      syncService.batchDeleteFlashcardsFromCloud(ids);
     }
   }
 
@@ -470,20 +470,6 @@ export class FlashcardService {
    */
   async getAllGroups(): Promise<FlashcardGroup[]> {
     return flashcardDB.getAllGroups();
-  }
-
-  /**
-   * 重新计算所有分组的卡片数量
-   * 用于修复数据不一致的问题
-   * 注意：此方法不会触发云端同步，仅更新本地数据
-   */
-  async recalculateAllGroupCounts(): Promise<void> {
-    const groups = await flashcardDB.getAllGroups();
-
-    // 批量重新计算时不触发同步，避免产生大量网络请求
-    for (const group of groups) {
-      await this.updateGroupCardCount(group.id, false);
-    }
   }
 
   /**

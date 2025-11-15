@@ -53,6 +53,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  // 设置定时同步（每10分钟同步一次）
+  useEffect(() => {
+    // 只有在已登录时才启动定时器
+    if (!user) {
+      return;
+    }
+
+    const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10分钟
+
+    console.info('🔄 启动定时同步，间隔：10分钟');
+
+    const intervalId = setInterval(async () => {
+      if (supabaseService.isAuthenticated()) {
+        try {
+          console.info('🔄 定时自动同步开始...');
+          await syncService.sync();
+          console.info('✅ 定时自动同步完成');
+        } catch (error) {
+          console.error('❌ 定时自动同步失败:', error);
+        }
+      }
+    }, SYNC_INTERVAL_MS);
+
+    // 清理函数：组件卸载或用户登出时清除定时器
+    return () => {
+      console.info('🛑 清除定时同步');
+      clearInterval(intervalId);
+    };
+  }, [user]);
+
   /**
    * 登录
    */

@@ -73,6 +73,7 @@ export interface UserConfig {
   enableHistory?: boolean;
   defaultFlashcardGroupId?: string;  // 默认的 Flashcard 分组 ID
   autoSync?: boolean;          // 是否启用自动同步（默认 true）
+  lastSyncTime?: number;       // 最后一次从云端同步数据的时间（时间戳）
 }
 
 // 翻译历史记录
