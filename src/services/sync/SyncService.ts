@@ -14,6 +14,7 @@ import { ProficiencyLevel } from '@/types/flashcard';
 import { supabaseService } from './SupabaseService';
 import { flashcardDB } from '../flashcard/FlashcardDB';
 import { ConfigService } from '../config/ConfigService';
+import { flashcardService } from '../flashcard/FlashcardService';
 
 /**
  * FSRS State 映射（本地 <-> 云端）
@@ -78,6 +79,9 @@ export class SyncService {
       const cardResult = await this.syncFlashcards();
       result.uploadedCount += cardResult.uploaded;
       result.downloadedCount += cardResult.downloaded;
+
+      // 3. 重新计算所有分组的卡片数量(修复同步后计数不准确的问题)
+      await flashcardService.recalculateAllGroupCounts(false);
 
       result.status = SyncStatus.Success;
       this.lastSyncTime = Date.now();

@@ -524,6 +524,19 @@ export class FlashcardService {
   }
 
   /**
+   * 重新计算所有分组的卡片数量
+   * 用于修复同步后计数不准确的问题
+   * @param sync 是否同步到云端（默认 false,避免大量同步请求）
+   */
+  async recalculateAllGroupCounts(sync: boolean = false): Promise<void> {
+    const groups = await flashcardDB.getAllGroups();
+
+    for (const group of groups) {
+      await this.updateGroupCardCount(group.id, sync);
+    }
+  }
+
+  /**
    * 确保默认分组存在
    */
   async ensureDefaultGroup(): Promise<void> {
