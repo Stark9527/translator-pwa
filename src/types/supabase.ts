@@ -75,6 +75,28 @@ export interface UserConfigRow {
 }
 
 /**
+ * 每日学习统计表（daily_stats）
+ */
+export interface DailyStatsRow {
+  id: string; // UUID
+  user_id: string; // UUID
+  date: string; // DATE (YYYY-MM-DD)
+  new_cards: number; // INTEGER
+  reviewed_cards: number; // INTEGER
+  mastered_cards: number; // INTEGER
+  total_answers: number; // INTEGER
+  correct_count: number; // INTEGER
+  wrong_count: number; // INTEGER
+  total_study_time: number; // INTEGER (毫秒)
+  average_response_time: number; // INTEGER (毫秒)
+  studied_card_ids: string[]; // JSONB array
+  new_card_ids: string[]; // JSONB array
+  mastered_card_ids: string[]; // JSONB array
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+/**
  * 同步状态
  */
 export enum SyncStatus {

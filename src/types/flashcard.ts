@@ -173,6 +173,7 @@ export interface OverallStats {
 
   streak: number;                // 连续学习天数
   longestStreak: number;         // 最长连续天数
+  totalStudyDays: number;        // 总学习天数（累计有学习记录的天数）
 }
 
 /**

@@ -2,10 +2,12 @@
 import type {
   Flashcard,
   FlashcardGroup,
+  DailyStats,
 } from '@/types/flashcard';
 import type {
   FlashcardRow,
   GroupRow,
+  DailyStatsRow,
   SyncResult,
 } from '@/types/supabase';
 import { SyncStatus } from '@/types/supabase';
@@ -45,6 +47,7 @@ export class SyncService {
   // 防抖队列：用于合并短时间内的多次同步请求
   private groupSyncQueue = new Map<string, number>();
   private cardSyncQueue = new Map<string, number>();
+  private dailyStatsSyncQueue = new Map<string, number>();
   private readonly DEBOUNCE_DELAY = 1000; // 1秒防抖延迟
 
   /**
@@ -80,7 +83,12 @@ export class SyncService {
       result.uploadedCount += cardResult.uploaded;
       result.downloadedCount += cardResult.downloaded;
 
-      // 3. 重新计算所有分组的卡片数量(修复同步后计数不准确的问题)
+      // 3. 同步每日学习统计
+      const dailyStatsResult = await this.syncDailyStats();
+      result.uploadedCount += dailyStatsResult.uploaded;
+      result.downloadedCount += dailyStatsResult.downloaded;
+
+      // 4. 重新计算所有分组的卡片数量(修复同步后计数不准确的问题)
       await flashcardService.recalculateAllGroupCounts(false);
 
       result.status = SyncStatus.Success;
@@ -242,6 +250,81 @@ export class SyncService {
         await this.downloadFlashcard(remoteCard);
         downloaded++;
       }
+    }
+
+    return { uploaded, downloaded, conflicts };
+  }
+
+  /**
+   * 同步每日学习统计
+   */
+  private async syncDailyStats(): Promise<{
+    uploaded: number;
+    downloaded: number;
+    conflicts: number;
+  }> {
+    const client = supabaseService.getClient();
+    const userId = supabaseService.getUserId();
+
+    // 1. 获取本地所有 dailyStats（过去365天）
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+    const startDate = oneYearAgo.toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
+
+    const localStats = await flashcardDB.getDailyStatsRange(startDate, endDate);
+
+    // 2. 获取云端所有 dailyStats（过去365天）
+    const { data: remoteStats, error } = await client
+      .from('daily_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+
+    if (error) {
+      throw new Error(`获取云端每日统计失败: ${error.message}`);
+    }
+
+    const remoteStatsMap = new Map(
+      (remoteStats || []).map(s => [s.date, s])
+    );
+
+    let uploaded = 0;
+    let downloaded = 0;
+    const conflicts = 0;
+
+    // 3. 同步本地统计
+    for (const localStat of localStats) {
+      const remoteStat = remoteStatsMap.get(localStat.date);
+
+      if (!remoteStat) {
+        // 本地新增，上传到云端
+        await this.uploadDailyStats(localStat, userId);
+        uploaded++;
+      } else {
+        const localUpdatedAt = new Date(remoteStat.updated_at).getTime();
+        const remoteUpdatedAt = new Date(remoteStat.updated_at).getTime();
+
+        if (localUpdatedAt > remoteUpdatedAt) {
+          // 本地更新较新，上传到云端
+          await this.uploadDailyStats(localStat, userId);
+          uploaded++;
+        } else if (localUpdatedAt < remoteUpdatedAt) {
+          // 云端更新较新，下载到本地
+          await this.downloadDailyStats(remoteStat);
+          downloaded++;
+        }
+      }
+
+      remoteStatsMap.delete(localStat.date);
+    }
+
+    // 4. 下载云端新增的统计
+    for (const remoteStat of remoteStatsMap.values()) {
+      await this.downloadDailyStats(remoteStat);
+      downloaded++;
     }
 
     return { uploaded, downloaded, conflicts };
@@ -609,6 +692,92 @@ export class SyncService {
       console.error('❌ 删除云端分组失败（静默忽略）:', error);
       // 静默失败，不影响本地操作
     }
+  }
+
+  /**
+   * 上传每日统计到云端
+   */
+  private async uploadDailyStats(stats: DailyStats, userId: string): Promise<void> {
+    const client = supabaseService.getClient();
+
+    const statsRow: Partial<DailyStatsRow> = {
+      user_id: userId,
+      date: stats.date,
+      new_cards: stats.newCards,
+      reviewed_cards: stats.reviewedCards,
+      mastered_cards: stats.masteredCards,
+      total_answers: stats.totalAnswers,
+      correct_count: stats.correctCount,
+      wrong_count: stats.wrongCount,
+      total_study_time: stats.totalStudyTime,
+      average_response_time: stats.averageResponseTime,
+      studied_card_ids: stats.studiedCardIds,
+      new_card_ids: stats.newCardIds,
+      mastered_card_ids: stats.masteredCardIds,
+    };
+
+    const { error } = await client
+      .from('daily_stats')
+      .upsert(statsRow, { onConflict: 'user_id,date' });
+
+    if (error) {
+      throw new Error(`上传每日统计失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 下载每日统计到本地
+   */
+  private async downloadDailyStats(statsRow: DailyStatsRow): Promise<void> {
+    const stats: DailyStats = {
+      date: statsRow.date,
+      newCards: statsRow.new_cards,
+      reviewedCards: statsRow.reviewed_cards,
+      masteredCards: statsRow.mastered_cards,
+      totalAnswers: statsRow.total_answers,
+      correctCount: statsRow.correct_count,
+      wrongCount: statsRow.wrong_count,
+      totalStudyTime: statsRow.total_study_time,
+      averageResponseTime: statsRow.average_response_time,
+      studiedCardIds: statsRow.studied_card_ids,
+      newCardIds: statsRow.new_card_ids,
+      masteredCardIds: statsRow.mastered_card_ids,
+    };
+
+    await flashcardDB.saveDailyStats(stats);
+  }
+
+  /**
+   * 同步单个 DailyStats 到云端（带防抖）
+   * 用于实时同步，静默执行，不抛出错误
+   */
+  syncDailyStatsToCloud(stats: DailyStats): void {
+    // 如果未登录，跳过同步
+    if (!supabaseService.isAuthenticated()) {
+      return;
+    }
+
+    // 清除之前的防抖定时器
+    const existingTimer = this.dailyStatsSyncQueue.get(stats.date);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // 设置新的防抖定时器
+    const timer = setTimeout(async () => {
+      try {
+        const userId = supabaseService.getUserId();
+        await this.uploadDailyStats(stats, userId);
+        console.debug('✅ 每日统计已同步到云端:', stats.date);
+      } catch (error) {
+        console.error('❌ 每日统计同步失败（静默忽略）:', error);
+        // 静默失败，不影响本地操作
+      } finally {
+        this.dailyStatsSyncQueue.delete(stats.date);
+      }
+    }, this.DEBOUNCE_DELAY);
+
+    this.dailyStatsSyncQueue.set(stats.date, timer);
   }
 }
 

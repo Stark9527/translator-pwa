@@ -117,13 +117,23 @@ export default function StatisticsPage() {
       <div className="grid grid-cols-2 gap-3 mb-6">
         {/* 连续学习 */}
         <div className="p-4 bg-card border border-border rounded-lg">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
               <Icon icon={Flame} size="sm" className="text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{stats.streak}</p>
               <p className="text-xs text-muted-foreground">连续天数</p>
+            </div>
+          </div>
+          <div className="space-y-1 text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span>总学习天数</span>
+              <span className="font-medium text-foreground">{stats.totalStudyDays} 天</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>最长连续</span>
+              <span className="font-medium text-foreground">{stats.longestStreak} 天</span>
             </div>
           </div>
         </div>

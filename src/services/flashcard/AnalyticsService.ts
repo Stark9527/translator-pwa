@@ -116,6 +116,7 @@ export class AnalyticsService {
 
       streak: streak.current,
       longestStreak: streak.longest,
+      totalStudyDays: streak.total,
     };
   }
 
@@ -279,6 +280,7 @@ export class AnalyticsService {
 
       streak: streak.current,
       longestStreak: streak.longest,
+      totalStudyDays: streak.total,
     };
   }
 

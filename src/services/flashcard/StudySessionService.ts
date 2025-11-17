@@ -6,6 +6,7 @@ import type { Grade } from 'ts-fsrs';
 import { flashcardDB } from './FlashcardDB';
 import { flashcardService } from './FlashcardService';
 import { fsrsService } from './FSRSService';
+import { syncService } from '../sync/SyncService';
 
 /**
  * 学习会话服务
@@ -373,6 +374,9 @@ export class StudySessionService {
     }
 
     await flashcardDB.saveDailyStats(stats);
+
+    // 实时同步到云端（带防抖，静默失败）
+    syncService.syncDailyStatsToCloud(stats);
   }
 
   /**
@@ -405,14 +409,15 @@ export class StudySessionService {
   }
 
   /**
-   * 获取学习连续天数（streak）
+   * 获取学习连续天数（streak）和总学习天数
    */
-  async getStreak(): Promise<{ current: number; longest: number }> {
+  async getStreak(): Promise<{ current: number; longest: number; total: number }> {
     const recentStats = await this.getRecentStats(365); // 查看过去一年
 
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
+    let totalStudyDays = 0;
 
     // 从今天开始往前计算
     let checkDate = new Date();
@@ -431,7 +436,7 @@ export class StudySessionService {
       checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    // 计算最长连续天数
+    // 计算最长连续天数和总学习天数
     checkDate = new Date();
     checkDate.setDate(checkDate.getDate() - 364);
 
@@ -442,6 +447,7 @@ export class StudySessionService {
       if (stats && (stats.newCards > 0 || stats.reviewedCards > 0)) {
         tempStreak++;
         longestStreak = Math.max(longestStreak, tempStreak);
+        totalStudyDays++; // 累计学习天数
       } else {
         tempStreak = 0;
       }
@@ -452,6 +458,7 @@ export class StudySessionService {
     return {
       current: currentStreak,
       longest: longestStreak,
+      total: totalStudyDays,
     };
   }
 }
