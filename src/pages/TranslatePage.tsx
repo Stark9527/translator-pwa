@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftRight, Volume2, BookmarkPlus, Loader2, Check, AlertCircle, Settings } from 'lucide-react';
+import { ArrowLeftRight, Volume2, BookmarkPlus, Loader2, AlertCircle, Settings, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { SUPPORTED_LANGUAGES } from '@/utils/constants';
 import { TranslatorFactory } from '@/services/translator/TranslatorFactory';
 import { ConfigService } from '@/services/config/ConfigService';
 import { flashcardService } from '@/services/flashcard/FlashcardService';
+import { useToast } from '@/hooks/useToast';
 import type { TranslateResult, LanguageCode, UserConfig } from '@/types';
 
 /**
@@ -14,6 +15,8 @@ import type { TranslateResult, LanguageCode, UserConfig } from '@/types';
  */
 export function TranslatePage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [translationResult, setTranslationResult] = useState<TranslateResult | null>(null);
@@ -24,7 +27,6 @@ export function TranslatePage() {
   const [error, setError] = useState<string | null>(null);
   const [needsApiKey, setNeedsApiKey] = useState(false);
   const [addingToFlashcard, setAddingToFlashcard] = useState(false);
-  const [flashcardAdded, setFlashcardAdded] = useState(false);
 
   // 加载配置
   useEffect(() => {
@@ -41,7 +43,6 @@ export function TranslatePage() {
     setIsTranslating(true);
     setError(null);
     setNeedsApiKey(false);
-    setFlashcardAdded(false);
 
     try {
       // 创建翻译器实例
@@ -92,7 +93,11 @@ export function TranslatePage() {
 
   const handleAddToFlashcard = async () => {
     if (!translationResult) {
-      setError('请先进行翻译');
+      toast({
+        variant: 'destructive',
+        title: '请先进行翻译',
+        duration: 2000,
+      });
       return;
     }
 
@@ -108,7 +113,11 @@ export function TranslatePage() {
       );
 
       if (exists) {
-        setError('该卡片已存在');
+        toast({
+          variant: 'destructive',
+          title: '该卡片已存在',
+          duration: 2000,
+        });
         setAddingToFlashcard(false);
         return;
       }
@@ -116,18 +125,31 @@ export function TranslatePage() {
       // 从翻译结果创建 Flashcard
       await flashcardService.createFromTranslation(translationResult);
 
-      setFlashcardAdded(true);
-
-      // 3秒后自动隐藏成功提示
-      setTimeout(() => {
-        setFlashcardAdded(false);
-      }, 3000);
+      toast({
+        variant: 'success',
+        title: '已成功添加到学习卡片',
+        duration: 2000,
+      });
     } catch (error) {
       console.error('Add to flashcard error:', error);
-      setError(error instanceof Error ? error.message : '添加失败，请重试');
+      toast({
+        variant: 'destructive',
+        title: '添加失败',
+        description: error instanceof Error ? error.message : '请重试',
+        duration: 3000,
+      });
     } finally {
       setAddingToFlashcard(false);
     }
+  };
+
+  const handleClearInput = () => {
+    setSourceText('');
+    setTranslatedText('');
+    setTranslationResult(null);
+    setError(null);
+    // 重新聚焦到输入框
+    textareaRef.current?.focus();
   };
 
   const handlePlayAudio = (text: string, lang?: LanguageCode) => {
@@ -228,14 +250,6 @@ export function TranslatePage() {
         </div>
       )}
 
-      {/* 成功提示（Flashcard 已添加） */}
-      {flashcardAdded && (
-        <div className="mx-4 mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-2">
-          <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-green-600 flex-1">已成功添加到学习卡片</p>
-        </div>
-      )}
-
       {/* 语言选择栏 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <select
@@ -312,10 +326,10 @@ export function TranslatePage() {
                   {(!translationResult?.meanings || translationResult.meanings.length === 0) && (
                     <button
                       onClick={handleAddToFlashcard}
-                      disabled={addingToFlashcard || flashcardAdded}
+                      disabled={addingToFlashcard}
                       className={cn(
                         'p-1 rounded transition-colors',
-                        addingToFlashcard || flashcardAdded
+                        addingToFlashcard
                           ? 'cursor-not-allowed opacity-50'
                           : 'hover:bg-accent'
                       )}
@@ -323,8 +337,6 @@ export function TranslatePage() {
                     >
                       {addingToFlashcard ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : flashcardAdded ? (
-                        <Check className="w-4 h-4 text-green-600" />
                       ) : (
                         <BookmarkPlus className="w-4 h-4" />
                       )}
@@ -360,10 +372,10 @@ export function TranslatePage() {
                       </button>
                       <button
                         onClick={handleAddToFlashcard}
-                        disabled={addingToFlashcard || flashcardAdded}
+                        disabled={addingToFlashcard}
                         className={cn(
                           'p-1 rounded transition-colors',
-                          addingToFlashcard || flashcardAdded
+                          addingToFlashcard
                             ? 'cursor-not-allowed opacity-50'
                             : 'hover:bg-accent'
                         )}
@@ -371,8 +383,6 @@ export function TranslatePage() {
                       >
                         {addingToFlashcard ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : flashcardAdded ? (
-                          <Check className="w-3.5 h-3.5 text-green-600" />
                         ) : (
                           <BookmarkPlus className="w-3.5 h-3.5 text-muted-foreground" />
                         )}
@@ -462,18 +472,30 @@ export function TranslatePage() {
 
       {/* 输入框区域 */}
       <div className="border-t border-border bg-background p-4 space-y-2">
-        <textarea
-          value={sourceText}
-          onChange={(e) => setSourceText(e.target.value)}
-          placeholder="输入要翻译的文本..."
-          className="w-full min-h-[60px] p-2 bg-muted/50 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              handleTranslate();
-            }
-          }}
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={sourceText}
+            onChange={(e) => setSourceText(e.target.value)}
+            placeholder="输入要翻译的文本..."
+            className="w-full min-h-[60px] p-2 pr-8 bg-muted/50 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleTranslate();
+              }
+            }}
+          />
+          {sourceText && (
+            <button
+              onClick={handleClearInput}
+              className="absolute top-2 right-2 p-1 hover:bg-accent rounded-full transition-colors"
+              aria-label="清除输入"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">

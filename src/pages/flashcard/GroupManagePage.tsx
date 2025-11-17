@@ -171,7 +171,7 @@ export default function GroupManagePage() {
               <TooltipContent>
                 <p>返回</p>
               </TooltipContent>
-            </Tooltip>
+          </Tooltip>
             <h1 className="text-lg font-bold text-foreground">分组管理</h1>
           </div>
           <Button
@@ -189,7 +189,7 @@ export default function GroupManagePage() {
 
       {/* 分组列表 */}
       <div className="flex-1 overflow-auto p-4">
-        <div className="space-y-2">
+        <div className="space-y-2">   
           {groups.map((group) => (
             <div
               key={group.id}

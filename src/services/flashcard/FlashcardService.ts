@@ -85,6 +85,18 @@ export class FlashcardService {
       });
     }
 
+    // 获取默认分组 ID（从配置中读取或使用 'default'）
+    let groupId = params?.groupId;
+    if (!groupId) {
+      try {
+        const config = await ConfigService.getConfig();
+        groupId = config.defaultFlashcardGroupId || 'default';
+      } catch (error) {
+        console.error('Failed to get default flashcard group from config:', error);
+        groupId = 'default';
+      }
+    }
+
     const flashcard: Flashcard = {
       id: uuidv4(),
       word: translation.text,
@@ -101,7 +113,7 @@ export class FlashcardService {
       targetLanguage: translation.to,
       engine: translation.engine,
 
-      groupId: params?.groupId || 'default',
+      groupId,
       tags: params?.tags || [],
 
       createdAt: now,
@@ -136,6 +148,18 @@ export class FlashcardService {
     const now = Date.now();
     const fsrsCard = fsrsService.createCard();
 
+    // 获取默认分组 ID（从配置中读取或使用 'default'）
+    let groupId = params.groupId;
+    if (!groupId) {
+      try {
+        const config = await ConfigService.getConfig();
+        groupId = config.defaultFlashcardGroupId || 'default';
+      } catch (error) {
+        console.error('Failed to get default flashcard group from config:', error);
+        groupId = 'default';
+      }
+    }
+
     const flashcard: Flashcard = {
       id: uuidv4(),
       word: params.word,
@@ -148,7 +172,7 @@ export class FlashcardService {
       targetLanguage: params.targetLanguage,
       engine: params.engine,
 
-      groupId: params.groupId || 'default',
+      groupId,
       tags: params.tags || [],
 
       createdAt: now,
