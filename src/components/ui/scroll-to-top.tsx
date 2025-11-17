@@ -28,6 +28,7 @@ export function ScrollToTop({
 }: ScrollToTopProps) {
   const [isVisible, setIsVisible] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     // 如果没有传递 containerRef，或者传递的不是真正的滚动容器，
@@ -46,15 +47,31 @@ export function ScrollToTop({
     }
 
     const toggleVisibility = () => {
-      let scrollTop = 0;
-
-      if (container) {
-        scrollTop = container.scrollTop;
-      } else {
-        scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      // 取消之前的 requestAnimationFrame 调用
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
       }
 
-      setIsVisible(scrollTop > threshold);
+      // 使用 requestAnimationFrame 延迟状态更新，避免中断滚动
+      rafRef.current = requestAnimationFrame(() => {
+        let scrollTop = 0;
+
+        if (container) {
+          scrollTop = container.scrollTop;
+        } else {
+          scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        }
+
+        const shouldBeVisible = scrollTop > threshold;
+
+        // 只在状态真正需要改变时才更新
+        setIsVisible(prev => {
+          if (prev !== shouldBeVisible) {
+            return shouldBeVisible;
+          }
+          return prev;
+        });
+      });
     };
 
     // 初始检查
@@ -68,6 +85,11 @@ export function ScrollToTop({
     }
 
     return () => {
+      // 清理 requestAnimationFrame
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+
       if (container) {
         container.removeEventListener('scroll', toggleVisibility);
       } else {
