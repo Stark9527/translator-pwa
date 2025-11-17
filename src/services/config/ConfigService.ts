@@ -241,9 +241,6 @@ export class ConfigService {
       };
     }
 
-    // 未来的版本迁移逻辑在这里添加
-    // if (fromVersion < 2) { ... }
-
     return migratedConfig;
   }
 

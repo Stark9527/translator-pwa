@@ -39,8 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const session = await supabaseService.getSession();
           if (session?.user) {
             setUser(session.user);
-            // 如果已登录，自动同步数据
-            await syncData();
+            // 延迟同步，避免与定时器冲突
+            // 使用 setTimeout 将同步推迟到下一个事件循环
+            setTimeout(() => {
+              syncData().catch(err => {
+                console.error('初始化同步失败:', err);
+              });
+            }, 1000);
           }
         }
       } catch (error) {
@@ -66,13 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const intervalId = setInterval(async () => {
       if (supabaseService.isAuthenticated()) {
-        try {
-          console.info('🔄 定时自动同步开始...');
-          await syncService.sync();
-          console.info('✅ 定时自动同步完成');
-        } catch (error) {
-          console.error('❌ 定时自动同步失败:', error);
-        }
+        // 使用 syncData 函数，它内置了并发控制
+        syncData();
       }
     }, SYNC_INTERVAL_MS);
 
@@ -121,12 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // 如果已经在同步中，静默跳过
+    if (isSyncing || syncService.getIsSyncing()) {
+      console.info('⏸️  同步已在进行中，跳过此次请求');
+      return;
+    }
+
     try {
       setIsSyncing(true);
       await syncService.sync();
     } catch (error) {
       console.error('数据同步失败:', error);
-      throw error;
+      // 不抛出错误，避免阻断初始化流程
     } finally {
       setIsSyncing(false);
     }

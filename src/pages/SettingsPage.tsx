@@ -429,31 +429,35 @@ export function SettingsPage() {
             {/* Google API Key 配置 */}
             {engine === 'google' && (
               <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-muted-foreground" />
-                    <label className="font-medium">Google API Key</label>
+                <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Key className="w-5 h-5 text-muted-foreground" />
+                        <label className="font-medium">Google API Key</label>
+                      </div>
+                      <a
+                        href="https://console.cloud.google.com/apis/credentials"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        获取 API Key
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      value={googleApiKey}
+                      onChange={(e) => setGoogleApiKey(e.target.value)}
+                      placeholder="AIza..."
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      需要启用 Cloud Translation API。API Key 将安全存储在本地。
+                    </p>
                   </div>
-                  <a
-                    href="https://console.cloud.google.com/apis/credentials"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    获取 API Key
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  value={googleApiKey}
-                  onChange={(e) => setGoogleApiKey(e.target.value)}
-                  placeholder="AIza..."
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <p className="text-xs text-muted-foreground">
-                  需要启用 Cloud Translation API。API Key 将安全存储在本地。
-                </p>
+                </form>
 
                 {/* 词典功能开关 */}
                 <div className="pt-3 border-t border-border">
@@ -474,10 +478,59 @@ export function SettingsPage() {
                 {/* Microsoft API Key 配置（词典功能） */}
                 {enableDictionary && (
                   <div className="pt-3 border-t border-border space-y-3">
+                    <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Microsoft API Key（可选）</label>
+                          <a
+                            href="https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            获取 API Key
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <input
+                          type="password"
+                          value={microsoftApiKey}
+                          onChange={(e) => setMicrosoftApiKey(e.target.value)}
+                          placeholder="Microsoft Translator API Key"
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <div>
+                          <label className="text-sm font-medium">Azure 区域</label>
+                          <input
+                            type="text"
+                            value={microsoftRegion}
+                            onChange={(e) => setMicrosoftRegion(e.target.value)}
+                            placeholder="global"
+                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            例如：global, eastus, westus2
+                          </p>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* DeepL API Key 配置 */}
+            {engine === 'deepl' && (
+              <div className="p-4 space-y-3">
+                <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Microsoft API Key（可选）</label>
+                      <div className="flex items-center gap-2">
+                        <Key className="w-5 h-5 text-muted-foreground" />
+                        <label className="font-medium">DeepL API Key</label>
+                      </div>
                       <a
-                        href="https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation"
+                        href="https://www.deepl.com/pro-api"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -488,57 +541,16 @@ export function SettingsPage() {
                     </div>
                     <input
                       type="password"
-                      value={microsoftApiKey}
-                      onChange={(e) => setMicrosoftApiKey(e.target.value)}
-                      placeholder="Microsoft Translator API Key"
+                      value={deeplApiKey}
+                      onChange={(e) => setDeeplApiKey(e.target.value)}
+                      placeholder="输入 DeepL API Key"
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    <div>
-                      <label className="text-sm font-medium">Azure 区域</label>
-                      <input
-                        type="text"
-                        value={microsoftRegion}
-                        onChange={(e) => setMicrosoftRegion(e.target.value)}
-                        placeholder="global"
-                        className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        例如：global, eastus, westus2
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      API Key 将安全存储在本地
+                    </p>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* DeepL API Key 配置 */}
-            {engine === 'deepl' && (
-              <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-muted-foreground" />
-                    <label className="font-medium">DeepL API Key</label>
-                  </div>
-                  <a
-                    href="https://www.deepl.com/pro-api"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    获取 API Key
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  value={deeplApiKey}
-                  onChange={(e) => setDeeplApiKey(e.target.value)}
-                  placeholder="输入 DeepL API Key"
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <p className="text-xs text-muted-foreground">
-                  API Key 将安全存储在本地
-                </p>
+                </form>
               </div>
             )}
 
