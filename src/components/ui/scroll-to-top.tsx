@@ -28,10 +28,8 @@ export function ScrollToTop({
 }: ScrollToTopProps) {
   const [isVisible, setIsVisible] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const rafRef = useRef<number | null>(null);
-  const timeoutRef = useRef<number | null>(null);
-  const lastUpdateTimeRef = useRef<number>(0);
-  const throttleDelay = 150; // 节流延迟，毫秒
+  const scrollStopTimeoutRef = useRef<number | null>(null);
+  const scrollStopDelay = 150; // 滚动停止判定时间，毫秒
 
   useEffect(() => {
     // 如果没有传递 containerRef，或者传递的不是真正的滚动容器，
@@ -49,78 +47,60 @@ export function ScrollToTop({
       }
     }
 
-    const toggleVisibility = () => {
-      const now = Date.now();
-
-      // 取消之前的调度
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      if (timeoutRef.current !== null) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+    const handleScroll = () => {
+      // 清除之前的定时器
+      if (scrollStopTimeoutRef.current !== null) {
+        clearTimeout(scrollStopTimeoutRef.current);
       }
 
-      // 只有在超过节流延迟后才更新状态
-      const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
+      // 设置新的定时器，在滚动停止后才更新状态
+      scrollStopTimeoutRef.current = window.setTimeout(() => {
+        let scrollTop = 0;
 
-      if (timeSinceLastUpdate < throttleDelay) {
-        // 如果还在节流期内，延迟到节流期结束后再执行
-        const remainingTime = throttleDelay - timeSinceLastUpdate;
-        timeoutRef.current = setTimeout(() => {
-          rafRef.current = requestAnimationFrame(updateVisibility);
-        }, remainingTime);
-      } else {
-        // 否则立即在下一帧执行
-        rafRef.current = requestAnimationFrame(updateVisibility);
-      }
-    };
-
-    const updateVisibility = () => {
-      let scrollTop = 0;
-
-      if (container) {
-        scrollTop = container.scrollTop;
-      } else {
-        scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      }
-
-      const shouldBeVisible = scrollTop > threshold;
-
-      // 只在状态真正需要改变时才更新
-      setIsVisible(prev => {
-        if (prev !== shouldBeVisible) {
-          lastUpdateTimeRef.current = Date.now();
-          return shouldBeVisible;
+        if (container) {
+          scrollTop = container.scrollTop;
+        } else {
+          scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         }
-        return prev;
-      });
+
+        const shouldBeVisible = scrollTop > threshold;
+
+        // 只在状态真正需要改变时才更新
+        setIsVisible(prev => {
+          if (prev !== shouldBeVisible) {
+            return shouldBeVisible;
+          }
+          return prev;
+        });
+      }, scrollStopDelay);
     };
 
-    // 初始检查
-    updateVisibility();
+    // 初始检查（立即执行）
+    let scrollTop = 0;
+    if (container) {
+      scrollTop = container.scrollTop;
+    } else {
+      scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    }
+    setIsVisible(scrollTop > threshold);
 
     // 监听滚动事件
     if (container) {
-      container.addEventListener('scroll', toggleVisibility, { passive: true });
+      container.addEventListener('scroll', handleScroll, { passive: true });
     } else {
-      window.addEventListener('scroll', toggleVisibility, { passive: true });
+      window.addEventListener('scroll', handleScroll, { passive: true });
     }
 
     return () => {
-      // 清理所有定时器和动画帧
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-      }
-      if (timeoutRef.current !== null) {
-        clearTimeout(timeoutRef.current);
+      // 清理定时器
+      if (scrollStopTimeoutRef.current !== null) {
+        clearTimeout(scrollStopTimeoutRef.current);
       }
 
       if (container) {
-        container.removeEventListener('scroll', toggleVisibility);
+        container.removeEventListener('scroll', handleScroll);
       } else {
-        window.removeEventListener('scroll', toggleVisibility);
+        window.removeEventListener('scroll', handleScroll);
       }
     };
   }, [containerRef, threshold]);
