@@ -12,6 +12,7 @@ import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import {
   Select,
   SelectContent,
@@ -76,6 +77,7 @@ export default function FlashcardListPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 当从其他页面返回时重新加载数据
   useEffect(() => {
@@ -622,7 +624,7 @@ export default function FlashcardListPage() {
       </div>
 
       {/* 卡片列表 */}
-      <div className="flex-1 overflow-auto p-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto p-4">
         {filteredCards.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <Icon icon={Library} size="xl" className="text-muted-foreground mb-4" />
@@ -837,6 +839,9 @@ export default function FlashcardListPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 返回顶部按钮 */}
+      <ScrollToTop containerRef={scrollContainerRef} threshold={100} />
     </div>
     </TooltipProvider>
   );

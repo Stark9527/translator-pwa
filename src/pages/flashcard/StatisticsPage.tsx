@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Flame, Target, Library, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { OverallStats } from '@/types/flashcard';
@@ -6,6 +6,7 @@ import { ProficiencyLevel } from '@/types/flashcard';
 import { analyticsService } from '@/services/flashcard';
 import { Icon } from '@/components/ui/icon';
 import { ProgressRing } from '@/components/flashcard/ProgressRing';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
 
 const PROFICIENCY_COLORS = {
   [ProficiencyLevel.New]: '#9ca3af', // gray
@@ -50,6 +51,7 @@ export default function StatisticsPage() {
     masteredCards: number;
     dueCards: number;
   }>>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 加载所有统计数据（只在初始化时加载一次）
   useEffect(() => {
@@ -108,7 +110,7 @@ export default function StatisticsPage() {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-4">
+    <div ref={scrollContainerRef} className="flex-1 overflow-auto p-4">
       <h1 className="text-lg font-bold text-foreground mb-4">学习统计</h1>
 
       {/* 全局统计卡片 */}
@@ -325,6 +327,9 @@ export default function StatisticsPage() {
           </div>
         </div>
       )}
+
+      {/* 返回顶部按钮 */}
+      <ScrollToTop containerRef={scrollContainerRef} threshold={100} />
     </div>
   );
 }

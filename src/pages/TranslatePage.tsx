@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftRight, Volume2, BookmarkPlus, Loader2, AlertCircle, Settings, X } from 'lucide-react';
+import { ArrowLeftRight, Volume2, BookmarkPlus, BookmarkCheck, Loader2, AlertCircle, Settings, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { SUPPORTED_LANGUAGES } from '@/utils/constants';
 import { TranslatorFactory } from '@/services/translator/TranslatorFactory';
@@ -27,6 +27,7 @@ export function TranslatePage() {
   const [error, setError] = useState<string | null>(null);
   const [needsApiKey, setNeedsApiKey] = useState(false);
   const [addingToFlashcard, setAddingToFlashcard] = useState(false);
+  const [isCardExists, setIsCardExists] = useState(false);
 
   // 加载配置
   useEffect(() => {
@@ -69,6 +70,14 @@ export function TranslatePage() {
       // 更新翻译结果
       setTranslationResult(result);
       setTranslatedText(result.translation);
+
+      // 检查卡片是否已存在
+      const exists = await flashcardService.exists(
+        result.text,
+        result.from,
+        result.to
+      );
+      setIsCardExists(exists);
     } catch (error) {
       console.error('Translation error:', error);
       const errorMessage = error instanceof Error ? error.message : '翻译失败，请重试';
@@ -101,29 +110,25 @@ export function TranslatePage() {
       return;
     }
 
+    // 如果卡片已存在,不允许添加
+    if (isCardExists) {
+      toast({
+        variant: 'destructive',
+        title: '该卡片已存在',
+        duration: 2000,
+      });
+      return;
+    }
+
     setAddingToFlashcard(true);
     setError(null);
 
     try {
-      // 检查是否已存在
-      const exists = await flashcardService.exists(
-        translationResult.text,
-        translationResult.from,
-        translationResult.to
-      );
-
-      if (exists) {
-        toast({
-          variant: 'destructive',
-          title: '该卡片已存在',
-          duration: 2000,
-        });
-        setAddingToFlashcard(false);
-        return;
-      }
-
       // 从翻译结果创建 Flashcard
       await flashcardService.createFromTranslation(translationResult);
+
+      // 标记卡片已存在
+      setIsCardExists(true);
 
       toast({
         variant: 'success',
@@ -148,6 +153,7 @@ export function TranslatePage() {
     setTranslatedText('');
     setTranslationResult(null);
     setError(null);
+    setIsCardExists(false);
     // 重新聚焦到输入框
     textareaRef.current?.focus();
   };
@@ -326,17 +332,19 @@ export function TranslatePage() {
                   {(!translationResult?.meanings || translationResult.meanings.length === 0) && (
                     <button
                       onClick={handleAddToFlashcard}
-                      disabled={addingToFlashcard}
+                      disabled={addingToFlashcard || isCardExists}
                       className={cn(
                         'p-1 rounded transition-colors',
-                        addingToFlashcard
+                        addingToFlashcard || isCardExists
                           ? 'cursor-not-allowed opacity-50'
                           : 'hover:bg-accent'
                       )}
-                      aria-label="添加到 Flashcard"
+                      aria-label={isCardExists ? '已添加到卡片' : '添加到 Flashcard'}
                     >
                       {addingToFlashcard ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isCardExists ? (
+                        <BookmarkCheck className="w-4 h-4 text-primary" />
                       ) : (
                         <BookmarkPlus className="w-4 h-4" />
                       )}
@@ -372,17 +380,19 @@ export function TranslatePage() {
                       </button>
                       <button
                         onClick={handleAddToFlashcard}
-                        disabled={addingToFlashcard}
+                        disabled={addingToFlashcard || isCardExists}
                         className={cn(
                           'p-1 rounded transition-colors',
-                          addingToFlashcard
+                          addingToFlashcard || isCardExists
                             ? 'cursor-not-allowed opacity-50'
                             : 'hover:bg-accent'
                         )}
-                        aria-label="添加到卡片"
+                        aria-label={isCardExists ? '已添加到卡片' : '添加到卡片'}
                       >
                         {addingToFlashcard ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : isCardExists ? (
+                          <BookmarkCheck className="w-3.5 h-3.5 text-primary" />
                         ) : (
                           <BookmarkPlus className="w-3.5 h-3.5 text-muted-foreground" />
                         )}

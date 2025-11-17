@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TranslationEngine, UserConfig, LanguageCode } from '@/types';
 import type { FlashcardGroup } from '@/types/flashcard';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -796,6 +797,9 @@ export function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {/* 返回顶部按钮 */}
+      <ScrollToTop threshold={100} />
     </div>
   );
 }

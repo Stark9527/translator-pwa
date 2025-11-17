@@ -602,16 +602,32 @@ export class FlashcardService {
   }
 
   /**
-   * 检查卡片是否存在（避免重复收藏）
-   * 使用完全匹配（区分大小写）
+   * 标准化语言代码，用于比较
+   * zh-CN, zh-TW, zh 都标准化为 zh
    */
-  async exists(word: string, sourceLanguage: string, targetLanguage: string): Promise<boolean> {
+  private normalizeLanguageCode(lang: string): string {
+    // 中文相关的语言代码都标准化为 zh
+    if (lang.startsWith('zh')) {
+      return 'zh';
+    }
+    return lang;
+  }
+
+  /**
+   * 检查卡片是否存在（避免重复收藏）
+   * 使用 word 和 targetLanguage 匹配（不区分源语言和大小写）
+   * 原因：同一个词翻译到同一目标语言，无论源语言是"自动检测"还是手动选择，都应被视为重复
+   */
+  async exists(word: string, _sourceLanguage: string, targetLanguage: string): Promise<boolean> {
     const allCards = await flashcardDB.getAllFlashcards();
+    // 标准化单词：去除首尾空格，统一小写比较
+    const normalizedWord = word.trim().toLowerCase();
+    const normalizedTargetLang = this.normalizeLanguageCode(targetLanguage);
+
     return allCards.some(
       card =>
-        card.word === word &&
-        card.sourceLanguage === sourceLanguage &&
-        card.targetLanguage === targetLanguage
+        card.word.trim().toLowerCase() === normalizedWord &&
+        this.normalizeLanguageCode(card.targetLanguage) === normalizedTargetLang
     );
   }
 
