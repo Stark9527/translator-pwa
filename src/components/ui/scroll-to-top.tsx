@@ -29,6 +29,9 @@ export function ScrollToTop({
   const [isVisible, setIsVisible] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const rafRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const throttleDelay = 150; // 节流延迟，毫秒
 
   useEffect(() => {
     // 如果没有传递 containerRef，或者传递的不是真正的滚动容器，
@@ -47,35 +50,56 @@ export function ScrollToTop({
     }
 
     const toggleVisibility = () => {
-      // 取消之前的 requestAnimationFrame 调用
+      const now = Date.now();
+
+      // 取消之前的调度
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
 
-      // 使用 requestAnimationFrame 延迟状态更新，避免中断滚动
-      rafRef.current = requestAnimationFrame(() => {
-        let scrollTop = 0;
+      // 只有在超过节流延迟后才更新状态
+      const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
 
-        if (container) {
-          scrollTop = container.scrollTop;
-        } else {
-          scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if (timeSinceLastUpdate < throttleDelay) {
+        // 如果还在节流期内，延迟到节流期结束后再执行
+        const remainingTime = throttleDelay - timeSinceLastUpdate;
+        timeoutRef.current = setTimeout(() => {
+          rafRef.current = requestAnimationFrame(updateVisibility);
+        }, remainingTime);
+      } else {
+        // 否则立即在下一帧执行
+        rafRef.current = requestAnimationFrame(updateVisibility);
+      }
+    };
+
+    const updateVisibility = () => {
+      let scrollTop = 0;
+
+      if (container) {
+        scrollTop = container.scrollTop;
+      } else {
+        scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      }
+
+      const shouldBeVisible = scrollTop > threshold;
+
+      // 只在状态真正需要改变时才更新
+      setIsVisible(prev => {
+        if (prev !== shouldBeVisible) {
+          lastUpdateTimeRef.current = Date.now();
+          return shouldBeVisible;
         }
-
-        const shouldBeVisible = scrollTop > threshold;
-
-        // 只在状态真正需要改变时才更新
-        setIsVisible(prev => {
-          if (prev !== shouldBeVisible) {
-            return shouldBeVisible;
-          }
-          return prev;
-        });
+        return prev;
       });
     };
 
     // 初始检查
-    toggleVisibility();
+    updateVisibility();
 
     // 监听滚动事件
     if (container) {
@@ -85,9 +109,12 @@ export function ScrollToTop({
     }
 
     return () => {
-      // 清理 requestAnimationFrame
+      // 清理所有定时器和动画帧
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+      }
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
       }
 
       if (container) {
@@ -129,12 +156,14 @@ export function ScrollToTop({
         'fixed bottom-20 right-4 w-9 h-9 rounded-full',
         'bg-primary text-primary-foreground shadow-lg',
         'flex items-center justify-center',
-        'transition-all duration-300 ease-in-out',
+        'transition-opacity duration-200 ease-in-out',
         'hover:bg-primary/90 hover:scale-110',
         'active:scale-95',
         'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
         'md:bottom-6',
-        isVisible ? 'opacity-100 translate-y-0 z-[100]' : 'opacity-0 translate-y-4 pointer-events-none z-[-1]',
+        'z-[100]',
+        '[will-change:opacity]',
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
         className
       )}
       aria-label="返回顶部"
