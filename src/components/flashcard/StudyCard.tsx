@@ -175,22 +175,6 @@ export function StudyCard({ flashcard, isFlipped, onFlip }: StudyCardProps) {
               )}
             </div>
 
-            {/* 例句 */}
-            {flashcard.examples && flashcard.examples.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs text-muted-foreground mb-2">例句</p>
-                <div className="space-y-2">
-                  {flashcard.examples.map((example, index) => (
-                    <div key={index} className="bg-accent/50 rounded-lg p-2">
-                      <p className="text-xs text-foreground italic leading-relaxed">
-                        {example}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* 笔记 */}
             {flashcard.notes && (
               <div className="mb-3">
