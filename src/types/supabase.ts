@@ -27,6 +27,7 @@ export interface FlashcardRow {
   word: string;
   translation: string;
   phonetic?: string | null;
+  audio_url?: string | null; // 发音音频URL
   definitions: any[]; // JSONB
   examples: any[]; // JSONB
 

@@ -107,6 +107,7 @@ export class FlashcardService {
 
       // 保存词典信息（多词性、多释义）
       phonetic: translation.phonetic,
+      audioUrl: translation.audioUrl,
       meanings: processedMeanings,  // 使用处理后的 meanings
 
       sourceLanguage: translation.from,

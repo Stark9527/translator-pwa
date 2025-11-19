@@ -396,6 +396,7 @@ export class SyncService {
       word: card.word,
       translation: card.translation,
       phonetic: card.phonetic || null,
+      audio_url: card.audioUrl || null,
       definitions: card.meanings || [],
       examples: card.examples || [],
 
@@ -440,6 +441,7 @@ export class SyncService {
       examples: cardRow.examples || [],
       notes: undefined,
       phonetic: cardRow.phonetic || undefined,
+      audioUrl: cardRow.audio_url || undefined,
       meanings: cardRow.definitions || [],
 
       // 这些字段在云端没有存储，使用默认值

@@ -39,7 +39,10 @@ export class TranslatorFactory {
             config.googleApiKey,
             config.microsoftApiKey,
             config.microsoftRegion,
-            true
+            true,
+            config.azureSpeechKey,
+            config.azureSpeechRegion,
+            config.azureVoiceName
           );
         } else {
           // 否则使用普通的 Google 翻译器

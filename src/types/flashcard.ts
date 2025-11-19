@@ -44,6 +44,7 @@ export interface FlashcardData {
 
   // 词典信息（多词性、多释义）
   phonetic?: string;             // 音标
+  audioUrl?: string;             // 发音音频URL
   meanings?: import('./index').DictionaryMeaning[];  // 词典词义（按词性分组）
 
   // 来源信息

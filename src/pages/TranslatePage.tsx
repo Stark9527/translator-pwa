@@ -158,9 +158,36 @@ export function TranslatePage() {
     textareaRef.current?.focus();
   };
 
-  const handlePlayAudio = (text: string, lang?: LanguageCode) => {
+  const handlePlayAudio = (text: string, lang?: LanguageCode, audioUrl?: string) => {
     if (!text) return;
 
+    // 方案1: 优先使用 Azure TTS 音频（如果有）
+    if (audioUrl) {
+      try {
+        const audio = new Audio(audioUrl);
+
+        audio.onerror = () => {
+          console.warn('Azure 音频播放失败，降级到浏览器 TTS');
+          playWithBrowserTTS(text, lang);
+        };
+
+        audio.play().catch(() => {
+          console.warn('Azure 音频播放失败，降级到浏览器 TTS');
+          playWithBrowserTTS(text, lang);
+        });
+
+        return;
+      } catch (error) {
+        console.error('Azure audio error:', error);
+        // 降级到浏览器 TTS
+      }
+    }
+
+    // 方案2: 使用浏览器 TTS
+    playWithBrowserTTS(text, lang);
+  };
+
+  const playWithBrowserTTS = (text: string, lang?: LanguageCode) => {
     try {
       // 检查浏览器是否支持 Web Speech API
       if (!('speechSynthesis' in window)) {
@@ -372,7 +399,11 @@ export function TranslatePage() {
                         </span>
                       )}
                       <button
-                        onClick={() => handlePlayAudio(translationResult.text, translationResult.from)}
+                        onClick={() => handlePlayAudio(
+                          translationResult.text,
+                          translationResult.from,
+                          translationResult.audioUrl
+                        )}
                         className="p-1 hover:bg-accent rounded transition-colors"
                         aria-label="发音"
                       >

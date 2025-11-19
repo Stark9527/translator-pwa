@@ -3,18 +3,20 @@ import type { TranslateParams, TranslateResult, LanguageCode, DictionaryMeaning 
 import type { ITranslator } from './ITranslator';
 import { GoogleTranslator } from './GoogleTranslator';
 import { MicrosoftDictionaryService, FreeDictionaryService, POS_TAG_MAP } from '../dictionary';
+import { AzureTTSService, AZURE_VOICES } from '../audio/AzureTTSService';
 import { isWord } from '@/utils/textAnalyzer';
 
 /**
  * 词典翻译器
  * 智能判断输入类型：
- * - 英文单词：使用词典API（Microsoft + Free Dictionary）
+ * - 英文单词：使用词典API（Microsoft + Free Dictionary + Azure TTS）
  * - 句子/短语/非英文：使用翻译API（Google）
  */
 export class DictionaryTranslator implements ITranslator {
   private readonly googleTranslator: GoogleTranslator;
   private readonly microsoftDictService?: MicrosoftDictionaryService;
   private readonly freeDictService: FreeDictionaryService;
+  private readonly azureTTSService?: AzureTTSService;
   private readonly enableDictionary: boolean;
 
   /**
@@ -23,12 +25,18 @@ export class DictionaryTranslator implements ITranslator {
    * @param microsoftApiKey Microsoft Translator API Key（可选）
    * @param microsoftRegion Microsoft Azure 区域（可选）
    * @param enableDictionary 是否启用词典功能（默认 true）
+   * @param azureSpeechKey Azure Speech API Key（可选）
+   * @param azureSpeechRegion Azure Speech 区域（可选）
+   * @param azureVoiceName Azure 语音名称（可选，默认美式英语女声）
    */
   constructor(
     googleApiKey: string,
     microsoftApiKey?: string,
     microsoftRegion?: string,
-    enableDictionary = true
+    enableDictionary = true,
+    azureSpeechKey?: string,
+    azureSpeechRegion?: string,
+    azureVoiceName?: string
   ) {
     this.googleTranslator = new GoogleTranslator(googleApiKey);
     this.freeDictService = new FreeDictionaryService();
@@ -39,6 +47,20 @@ export class DictionaryTranslator implements ITranslator {
         microsoftApiKey,
         microsoftRegion
       );
+    }
+
+    // 初始化 Azure TTS 服务
+    if (azureSpeechKey && azureSpeechRegion) {
+      try {
+        const voice = azureVoiceName
+          ? { name: azureVoiceName, lang: azureVoiceName.split('-').slice(0, 2).join('-') }
+          : AZURE_VOICES.EN_US_ARIA; // 默认美式英语女声
+
+        this.azureTTSService = new AzureTTSService(azureSpeechKey, azureSpeechRegion, voice);
+        console.log('[DictionaryTranslator] Azure TTS 服务已初始化:', voice.name);
+      } catch (error) {
+        console.warn('[DictionaryTranslator] Azure TTS 服务初始化失败:', error);
+      }
     }
   }
 
@@ -126,14 +148,12 @@ export class DictionaryTranslator implements ITranslator {
 
     const msLookupResponse = msResult.value;
 
-    // 提取Free Dictionary的音标和音频
+    // 提取Free Dictionary的音标（仅用于音标，不再用于音频）
     let phonetic: string | undefined;
-    let audioUrl: string | undefined;
     let freeDictMeaningsMap: Map<string, string> | undefined;
 
     if (freeDictResult.status === 'fulfilled' && freeDictResult.value) {
       phonetic = this.freeDictService.extractPhonetic(freeDictResult.value);
-      audioUrl = this.freeDictService.extractAudioUrl(freeDictResult.value);
       freeDictMeaningsMap = this.freeDictService.extractAllMeanings(freeDictResult.value);
     } else {
       // Free Dictionary查询失败（可能是复数/变形），尝试查询标准形式
@@ -144,12 +164,25 @@ export class DictionaryTranslator implements ITranslator {
           const fallbackResult = await this.freeDictService.lookup(normalizedWord, 'en');
           if (fallbackResult) {
             phonetic = this.freeDictService.extractPhonetic(fallbackResult);
-            audioUrl = this.freeDictService.extractAudioUrl(fallbackResult);
             freeDictMeaningsMap = this.freeDictService.extractAllMeanings(fallbackResult);
           }
         } catch (error) {
           console.warn('查询词根形式失败:', error);
         }
+      }
+    }
+
+    // 使用 Azure TTS 生成音频（替代 Free Dictionary 音频）
+    let audioUrl: string | undefined;
+    if (this.azureTTSService) {
+      try {
+        // 使用标准化的单词（词根形式）生成音频
+        const wordToSpeak = msLookupResponse.normalizedSource || text.trim();
+        audioUrl = await this.azureTTSService.textToSpeech(wordToSpeak);
+        console.log('[DictionaryTranslator] Azure TTS 音频生成成功');
+      } catch (error) {
+        console.warn('[DictionaryTranslator] Azure TTS 音频生成失败:', error);
+        // 失败时 audioUrl 保持为 undefined，播放时会降级到浏览器 TTS
       }
     }
 

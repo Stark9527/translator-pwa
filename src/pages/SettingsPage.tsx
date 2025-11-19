@@ -23,6 +23,7 @@ import { cn } from '@/utils/cn';
 import { ConfigService } from '@/services/config/ConfigService';
 import { flashcardService } from '@/services/flashcard/FlashcardService';
 import { syncService } from '@/services/sync/SyncService';
+import { AzureAudioMigrationService, type AzureMigrationProgress } from '@/services/migration/AzureAudioMigration';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TranslationEngine, UserConfig, LanguageCode } from '@/types';
@@ -67,6 +68,9 @@ export function SettingsPage() {
   const [microsoftApiKey, setMicrosoftApiKey] = useState('');
   const [microsoftRegion, setMicrosoftRegion] = useState('global');
   const [enableDictionary, setEnableDictionary] = useState(true);
+  const [azureSpeechKey, setAzureSpeechKey] = useState('');
+  const [azureSpeechRegion, setAzureSpeechRegion] = useState('');
+  const [azureVoiceName, setAzureVoiceName] = useState('en-US-AriaNeural');
   const [autoSync, setAutoSync] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -78,6 +82,8 @@ export function SettingsPage() {
     total: 5 * 1024 * 1024,
     percentage: 0,
   });
+  const [isAzureMigrating, setIsAzureMigrating] = useState(false);
+  const [azureMigrationProgress, setAzureMigrationProgress] = useState<AzureMigrationProgress | null>(null);
 
   const userEmail = user?.email || null;
   const isLoggedIn = isAuthenticated;
@@ -101,6 +107,9 @@ export function SettingsPage() {
       setMicrosoftApiKey(config.microsoftApiKey || '');
       setMicrosoftRegion(config.microsoftRegion || 'global');
       setEnableDictionary(config.enableDictionary !== false);
+      setAzureSpeechKey(config.azureSpeechKey || '');
+      setAzureSpeechRegion(config.azureSpeechRegion || '');
+      setAzureVoiceName(config.azureVoiceName || 'en-US-AriaNeural');
       setAutoSync(config.autoSync !== false);
 
       // 加载存储配额信息
@@ -138,6 +147,9 @@ export function SettingsPage() {
         microsoftApiKey: microsoftApiKey.trim() || undefined,
         microsoftRegion: microsoftRegion.trim() || undefined,
         enableDictionary,
+        azureSpeechKey: azureSpeechKey.trim() || undefined,
+        azureSpeechRegion: azureSpeechRegion.trim() || undefined,
+        azureVoiceName: azureVoiceName.trim() || undefined,
         autoSync,
       };
 
@@ -252,6 +264,69 @@ export function SettingsPage() {
       return `${hours} 小时前`;
     } else {
       return `${days} 天前`;
+    }
+  };
+
+  const handleAzureMigrateAudio = async () => {
+    // 检查是否配置了 Azure Speech API
+    if (!azureSpeechKey || !azureSpeechRegion) {
+      toast({
+        variant: 'destructive',
+        title: '配置缺失',
+        description: '请先配置 Azure Speech API Key 和 Region',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsAzureMigrating(true);
+      setAzureMigrationProgress(null);
+
+      // 创建迁移服务实例
+      const azureMigration = new AzureAudioMigrationService(
+        azureSpeechKey,
+        azureSpeechRegion,
+        azureVoiceName
+      );
+
+      // 检查服务是否可用
+      if (!azureMigration.isAvailable()) {
+        throw new Error('Azure TTS 服务初始化失败');
+      }
+
+      // 执行本地和云端迁移
+      const results = await azureMigration.migrateBoth((progress) => {
+        setAzureMigrationProgress(progress);
+      });
+
+      // 显示成功提示
+      const total = results.local.updated + results.cloud.updated;
+      const failed = results.local.failed + results.cloud.failed;
+
+      toast({
+        variant: 'success',
+        title: 'Azure 音频生成完成',
+        description: `成功: ${total} 个，失败: ${failed} 个`,
+        duration: 5000,
+      });
+
+      // 如果有失败，显示错误详情
+      if (failed > 0) {
+        const allErrors = [...results.local.errors, ...results.cloud.errors];
+        console.error('Azure 迁移失败详情:', allErrors);
+      }
+
+    } catch (err) {
+      console.error('Azure 迁移失败:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Azure 音频生成失败',
+        description: err instanceof Error ? err.message : '未知错误',
+        duration: 3000,
+      });
+    } finally {
+      setIsAzureMigrating(false);
     }
   };
 
@@ -514,6 +589,65 @@ export function SettingsPage() {
                         </div>
                       </div>
                     </form>
+
+                    {/* Azure Speech Services 配置（音频功能） */}
+                    <div className="pt-3 border-t border-border space-y-3">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Azure Speech API Key（可选）</label>
+                          <a
+                            href="https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            获取 API Key
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <input
+                          type="password"
+                          value={azureSpeechKey}
+                          onChange={(e) => setAzureSpeechKey(e.target.value)}
+                          placeholder="Azure Speech Services API Key"
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <div>
+                          <label className="text-sm font-medium">Azure Speech 区域</label>
+                          <input
+                            type="text"
+                            value={azureSpeechRegion}
+                            onChange={(e) => setAzureSpeechRegion(e.target.value)}
+                            placeholder="eastus"
+                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            例如：eastus, westus, eastasia
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">语音名称</label>
+                          <select
+                            value={azureVoiceName}
+                            onChange={(e) => setAzureVoiceName(e.target.value)}
+                            className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="en-US-AriaNeural">美式英语 - Aria (女声)</option>
+                            <option value="en-US-JennyNeural">美式英语 - Jenny (女声)</option>
+                            <option value="en-US-GuyNeural">美式英语 - Guy (男声)</option>
+                            <option value="en-GB-SoniaNeural">英式英语 - Sonia (女声)</option>
+                          </select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            用于单词发音的 Azure 神经语音
+                          </p>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg">
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            💡 配置 Azure Speech 后，所有新创建的单词卡片将使用统一的 Azure TTS 发音，音质更清晰、发音更统一。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -781,6 +915,98 @@ export function SettingsPage() {
               </span>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </button>
+
+            {/* 批量生成 Azure 音频 */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 font-medium">
+                    <RefreshCw className={cn(
+                      "w-5 h-5",
+                      isAzureMigrating && "animate-spin text-primary"
+                    )} />
+                    批量生成 Azure 音频
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    为所有英文单词卡片使用 Azure TTS 生成统一发音（需要配置 Azure Speech API）
+                  </p>
+                </div>
+                <button
+                  onClick={handleAzureMigrateAudio}
+                  disabled={isAzureMigrating || !azureSpeechKey || !azureSpeechRegion}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isAzureMigrating || !azureSpeechKey || !azureSpeechRegion
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  )}
+                >
+                  {isAzureMigrating ? '生成中...' : '立即生成'}
+                </button>
+              </div>
+
+              {/* Azure 迁移进度显示 */}
+              {azureMigrationProgress && (
+                <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-2">
+                  {azureMigrationProgress.phase === 'fetching' && (
+                    <p className="text-sm text-muted-foreground">正在查找英文单词卡片...</p>
+                  )}
+
+                  {azureMigrationProgress.phase === 'processing' && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {azureMigrationProgress.currentWord && `正在处理: ${azureMigrationProgress.currentWord}`}
+                        </span>
+                        <span className="font-medium">
+                          {azureMigrationProgress.processed} / {azureMigrationProgress.total}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-background rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{
+                            width: `${(azureMigrationProgress.processed / azureMigrationProgress.total * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>✅ 成功: {azureMigrationProgress.updated}</span>
+                        <span>❌ 失败: {azureMigrationProgress.failed}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {azureMigrationProgress.phase === 'completed' && (
+                    <div className="text-sm space-y-1">
+                      <p className="text-green-600 dark:text-green-400 font-medium">
+                        ✅ 音频生成完成！
+                      </p>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p>总计: {azureMigrationProgress.total} 个卡片</p>
+                        <p>成功: {azureMigrationProgress.updated} 个</p>
+                        {azureMigrationProgress.failed > 0 && (
+                          <p className="text-destructive">失败: {azureMigrationProgress.failed} 个</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {azureMigrationProgress.phase === 'error' && (
+                    <div className="text-sm">
+                      <p className="text-destructive font-medium">
+                        ❌ 生成失败
+                      </p>
+                      {azureMigrationProgress.errors.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {azureMigrationProgress.errors[0].error}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">

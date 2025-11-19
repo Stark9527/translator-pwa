@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Volume2 } from 'lucide-react';
 import type { Flashcard } from '@/types/flashcard';
 import { Icon } from '@/components/ui/icon';
@@ -12,12 +12,54 @@ interface StudyCardProps {
 
 export function StudyCard({ flashcard, isFlipped, onFlip }: StudyCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handleSpeak = (text: string, lang: string, e?: React.MouseEvent) => {
+  const handleSpeak = (text: string, lang: string, e?: React.MouseEvent, audioUrl?: string) => {
     e?.stopPropagation();
     if (isPlaying) return;
 
     setIsPlaying(true);
+
+    // 方案1: 优先使用真实音频
+    if (audioUrl) {
+      try {
+        // 停止之前的音频
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+
+        // 创建新的音频实例
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setIsPlaying(false);
+          audioRef.current = null;
+        };
+
+        audio.onerror = () => {
+          console.warn('音频播放失败，降级到TTS');
+          // 降级到TTS
+          playWithTTS(text, lang);
+        };
+
+        audio.play().catch(() => {
+          console.warn('音频播放失败，降级到TTS');
+          playWithTTS(text, lang);
+        });
+
+        return;
+      } catch (error) {
+        console.error('Audio error:', error);
+      }
+    }
+
+    // 方案2: 降级使用浏览器TTS
+    playWithTTS(text, lang);
+  };
+
+  const playWithTTS = (text: string, lang: string) => {
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -55,7 +97,7 @@ export function StudyCard({ flashcard, isFlipped, onFlip }: StudyCardProps) {
               )}
               {/* 发声按钮 */}
               <button
-                onClick={(e) => handleSpeak(flashcard.word, flashcard.sourceLanguage, e)}
+                onClick={(e) => handleSpeak(flashcard.word, flashcard.sourceLanguage, e, flashcard.audioUrl)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
               >
                 <Icon icon={Volume2} size="sm" className={isPlaying ? 'animate-pulse' : ''} />
@@ -81,7 +123,7 @@ export function StudyCard({ flashcard, isFlipped, onFlip }: StudyCardProps) {
                 )}
                 {/* 发声按钮 */}
                 <button
-                  onClick={(e) => handleSpeak(flashcard.word, flashcard.sourceLanguage, e)}
+                  onClick={(e) => handleSpeak(flashcard.word, flashcard.sourceLanguage, e, flashcard.audioUrl)}
                   className="inline-flex items-center justify-center w-6 h-6 rounded-full hover:bg-accent transition-colors"
                 >
                   <Icon icon={Volume2} size="sm" className={`text-muted-foreground ${isPlaying ? 'animate-pulse' : ''}`} />

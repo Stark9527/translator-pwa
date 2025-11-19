@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Star, Trash2, Edit2, Volume2, Folder, FolderInput } from 'lucide-react';
@@ -35,11 +35,53 @@ export function FlashcardCard({
   onToggleSelect,
 }: FlashcardCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handleSpeak = (text: string, lang: string) => {
+  const handleSpeak = (text: string, lang: string, audioUrl?: string) => {
     if (isPlaying) return;
 
     setIsPlaying(true);
+
+    // 方案1: 优先使用真实音频
+    if (audioUrl) {
+      try {
+        // 停止之前的音频
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+
+        // 创建新的音频实例
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setIsPlaying(false);
+          audioRef.current = null;
+        };
+
+        audio.onerror = () => {
+          console.warn('音频播放失败，降级到TTS');
+          // 降级到TTS
+          playWithTTS(text, lang);
+        };
+
+        audio.play().catch(() => {
+          console.warn('音频播放失败，降级到TTS');
+          playWithTTS(text, lang);
+        });
+
+        return;
+      } catch (error) {
+        console.error('Audio error:', error);
+      }
+    }
+
+    // 方案2: 降级使用浏览器TTS
+    playWithTTS(text, lang);
+  };
+
+  const playWithTTS = (text: string, lang: string) => {
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -134,7 +176,7 @@ export function FlashcardCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSpeak(flashcard.word, flashcard.sourceLanguage);
+                      handleSpeak(flashcard.word, flashcard.sourceLanguage, flashcard.audioUrl);
                     }}
                     className="p-1 hover:bg-accent rounded transition-colors"
                     title="发音"
@@ -169,7 +211,7 @@ export function FlashcardCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleSpeak(flashcard.word, flashcard.sourceLanguage);
+                      handleSpeak(flashcard.word, flashcard.sourceLanguage, flashcard.audioUrl);
                     }}
                     className="p-1 hover:bg-accent rounded transition-colors"
                     title="发音"

@@ -68,6 +68,12 @@ export interface UserConfig {
   microsoftApiKey?: string;    // Microsoft Translator API Key
   microsoftRegion?: string;    // Microsoft Azure 区域（如 global）
   enableDictionary?: boolean;  // 是否启用词典功能（默认 true）
+
+  // Azure Speech Services 配置
+  azureSpeechKey?: string;     // Azure Speech API Key
+  azureSpeechRegion?: string;  // Azure Speech 区域（如 eastus、westus）
+  azureVoiceName?: string;     // 语音名称（如 en-US-AriaNeural）
+
   theme?: 'light' | 'dark' | 'auto';
   enableShortcut?: boolean;
   enableHistory?: boolean;
