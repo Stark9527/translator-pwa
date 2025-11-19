@@ -917,7 +917,7 @@ export function SettingsPage() {
             </button>
 
             {/* 批量生成 Azure 音频 */}
-            <div className="p-4 space-y-3">
+            {/* <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 font-medium">
@@ -945,7 +945,7 @@ export function SettingsPage() {
                 </button>
               </div>
 
-              {/* Azure 迁移进度显示 */}
+              {/* Azure 迁移进度显示 *\/}
               {azureMigrationProgress && (
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-2">
                   {azureMigrationProgress.phase === 'fetching' && (
@@ -1006,7 +1006,7 @@ export function SettingsPage() {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
 
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
