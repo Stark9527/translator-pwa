@@ -48,7 +48,6 @@ export interface TranslateResult {
   to: LanguageCode;       // 目标语言
   engine: TranslationEngine; // 使用的引擎
   pronunciation?: string; // 发音（保留兼容性）
-  examples?: string[];    // 例句（保留兼容性）
   alternatives?: string[]; // 备选翻译（保留兼容性）
 
   // 词典功能扩展字段

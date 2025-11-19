@@ -398,7 +398,6 @@ export class SyncService {
       phonetic: card.phonetic || null,
       audio_url: card.audioUrl || null,
       definitions: card.meanings || [],
-      examples: card.examples || [],
 
       // 用户标记
       favorite: card.favorite,
@@ -438,7 +437,6 @@ export class SyncService {
       word: cardRow.word,
       translation: cardRow.translation,
       pronunciation: undefined,
-      examples: cardRow.examples || [],
       notes: undefined,
       phonetic: cardRow.phonetic || undefined,
       audioUrl: cardRow.audio_url || undefined,

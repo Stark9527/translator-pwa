@@ -102,7 +102,6 @@ export class FlashcardService {
       word: translation.text,
       translation: fullTranslation,  // 保存所有词性的完整翻译
       pronunciation: translation.pronunciation,
-      examples: translation.examples,
       notes: params?.notes,
 
       // 保存词典信息（多词性、多释义）
@@ -166,7 +165,6 @@ export class FlashcardService {
       word: params.word,
       translation: params.translation,
       pronunciation: params.pronunciation,
-      examples: params.examples,
       notes: params.notes,
 
       sourceLanguage: params.sourceLanguage,

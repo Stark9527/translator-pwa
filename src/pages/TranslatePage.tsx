@@ -333,7 +333,11 @@ export function TranslatePage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-muted-foreground">原文</span>
                 <button
-                  onClick={() => handlePlayAudio(sourceText)}
+                  onClick={() => handlePlayAudio(
+                    sourceText,
+                    translationResult?.from,
+                    translationResult?.audioUrl
+                  )}
                   className="p-1 hover:bg-accent rounded transition-colors"
                   aria-label="朗读原文"
                 >
@@ -349,7 +353,10 @@ export function TranslatePage() {
                 <span className="text-xs text-muted-foreground">译文</span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handlePlayAudio(translatedText)}
+                    onClick={() => handlePlayAudio(
+                      translatedText,
+                      translationResult?.to
+                    )}
                     className="p-1 hover:bg-accent rounded transition-colors"
                     aria-label="朗读译文"
                   >

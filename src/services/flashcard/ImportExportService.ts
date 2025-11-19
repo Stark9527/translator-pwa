@@ -32,7 +32,6 @@ export interface AnkiCard {
   word: string;
   translation: string;
   pronunciation?: string;
-  examples?: string;
   notes?: string;
   tags: string;
 }
@@ -105,7 +104,6 @@ export class ImportExportService {
         word: card.word,
         translation: card.translation,
         pronunciation: card.pronunciation || '',
-        examples: card.examples?.join(' | ') || '',
         notes: card.notes || '',
         tags: card.tags.join(' '),
       }));
@@ -148,7 +146,7 @@ export class ImportExportService {
 
   /**
    * 从 Anki CSV 文件导入
-   * CSV 格式：word, translation, pronunciation, examples, notes, tags
+   * CSV 格式：word, translation, pronunciation, notes, tags
    */
   async importFromAnki(file: File): Promise<ImportResult> {
     try {
@@ -176,7 +174,6 @@ export class ImportExportService {
               word: ankiCard.word,
               translation: ankiCard.translation,
               pronunciation: ankiCard.pronunciation || undefined,
-              examples: ankiCard.examples ? ankiCard.examples.split(' | ') : undefined,
               notes: ankiCard.notes || undefined,
               sourceLanguage: 'en',
               targetLanguage: 'zh-CN',
@@ -285,7 +282,7 @@ export class ImportExportService {
     }
 
     // CSV 头部
-    const headers = ['word', 'translation', 'pronunciation', 'examples', 'notes', 'tags'];
+    const headers = ['word', 'translation', 'pronunciation', 'notes', 'tags'];
     const csvRows: string[] = [];
 
     // 添加头部（带 BOM 以支持 Excel 正确显示中文）
