@@ -23,7 +23,7 @@ import { cn } from '@/utils/cn';
 import { ConfigService } from '@/services/config/ConfigService';
 import { flashcardService } from '@/services/flashcard/FlashcardService';
 import { syncService } from '@/services/sync/SyncService';
-import { AzureAudioMigrationService, type AzureMigrationProgress } from '@/services/migration/AzureAudioMigration';
+// import { AzureAudioMigrationService, type AzureMigrationProgress } from '@/services/migration/AzureAudioMigration';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TranslationEngine, UserConfig, LanguageCode } from '@/types';
@@ -82,8 +82,8 @@ export function SettingsPage() {
     total: 5 * 1024 * 1024,
     percentage: 0,
   });
-  const [isAzureMigrating, setIsAzureMigrating] = useState(false);
-  const [azureMigrationProgress, setAzureMigrationProgress] = useState<AzureMigrationProgress | null>(null);
+  // const [isAzureMigrating, setIsAzureMigrating] = useState(false);
+  // const [azureMigrationProgress, setAzureMigrationProgress] = useState<AzureMigrationProgress | null>(null);
 
   const userEmail = user?.email || null;
   const isLoggedIn = isAuthenticated;
@@ -267,68 +267,68 @@ export function SettingsPage() {
     }
   };
 
-  const handleAzureMigrateAudio = async () => {
-    // 检查是否配置了 Azure Speech API
-    if (!azureSpeechKey || !azureSpeechRegion) {
-      toast({
-        variant: 'destructive',
-        title: '配置缺失',
-        description: '请先配置 Azure Speech API Key 和 Region',
-        duration: 3000,
-      });
-      return;
-    }
+  // const handleAzureMigrateAudio = async () => {
+  //   // 检查是否配置了 Azure Speech API
+  //   if (!azureSpeechKey || !azureSpeechRegion) {
+  //     toast({
+  //       variant: 'destructive',
+  //       title: '配置缺失',
+  //       description: '请先配置 Azure Speech API Key 和 Region',
+  //       duration: 3000,
+  //     });
+  //     return;
+  //   }
 
-    try {
-      setIsAzureMigrating(true);
-      setAzureMigrationProgress(null);
+  //   try {
+  //     setIsAzureMigrating(true);
+  //     setAzureMigrationProgress(null);
 
-      // 创建迁移服务实例
-      const azureMigration = new AzureAudioMigrationService(
-        azureSpeechKey,
-        azureSpeechRegion,
-        azureVoiceName
-      );
+  //     // 创建迁移服务实例
+  //     const azureMigration = new AzureAudioMigrationService(
+  //       azureSpeechKey,
+  //       azureSpeechRegion,
+  //       azureVoiceName
+  //     );
 
-      // 检查服务是否可用
-      if (!azureMigration.isAvailable()) {
-        throw new Error('Azure TTS 服务初始化失败');
-      }
+  //     // 检查服务是否可用
+  //     if (!azureMigration.isAvailable()) {
+  //       throw new Error('Azure TTS 服务初始化失败');
+  //     }
 
-      // 执行本地和云端迁移
-      const results = await azureMigration.migrateBoth((progress) => {
-        setAzureMigrationProgress(progress);
-      });
+  //     // 执行本地和云端迁移
+  //     const results = await azureMigration.migrateBoth((progress) => {
+  //       setAzureMigrationProgress(progress);
+  //     });
 
-      // 显示成功提示
-      const total = results.local.updated + results.cloud.updated;
-      const failed = results.local.failed + results.cloud.failed;
+  //     // 显示成功提示
+  //     const total = results.local.updated + results.cloud.updated;
+  //     const failed = results.local.failed + results.cloud.failed;
 
-      toast({
-        variant: 'success',
-        title: 'Azure 音频生成完成',
-        description: `成功: ${total} 个，失败: ${failed} 个`,
-        duration: 5000,
-      });
+  //     toast({
+  //       variant: 'success',
+  //       title: 'Azure 音频生成完成',
+  //       description: `成功: ${total} 个，失败: ${failed} 个`,
+  //       duration: 5000,
+  //     });
 
-      // 如果有失败，显示错误详情
-      if (failed > 0) {
-        const allErrors = [...results.local.errors, ...results.cloud.errors];
-        console.error('Azure 迁移失败详情:', allErrors);
-      }
+  //     // 如果有失败，显示错误详情
+  //     if (failed > 0) {
+  //       const allErrors = [...results.local.errors, ...results.cloud.errors];
+  //       console.error('Azure 迁移失败详情:', allErrors);
+  //     }
 
-    } catch (err) {
-      console.error('Azure 迁移失败:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Azure 音频生成失败',
-        description: err instanceof Error ? err.message : '未知错误',
-        duration: 3000,
-      });
-    } finally {
-      setIsAzureMigrating(false);
-    }
-  };
+  //   } catch (err) {
+  //     console.error('Azure 迁移失败:', err);
+  //     toast({
+  //       variant: 'destructive',
+  //       title: 'Azure 音频生成失败',
+  //       description: err instanceof Error ? err.message : '未知错误',
+  //       duration: 3000,
+  //     });
+  //   } finally {
+  //     setIsAzureMigrating(false);
+  //   }
+  // };
 
   if (isLoading) {
     return (
@@ -406,10 +406,10 @@ export function SettingsPage() {
               <label className="font-medium">源语言</label>
               <select
                 value={defaultSourceLang}
-                onChange={(e) => setDefaultSourceLang(e.target.value as LanguageCode)}
+                onChange={e => setDefaultSourceLang(e.target.value as LanguageCode)}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {LANGUAGE_OPTIONS.map((lang) => (
+                {LANGUAGE_OPTIONS.map(lang => (
                   <option key={lang.value} value={lang.value}>
                     {lang.label}
                   </option>
@@ -422,10 +422,10 @@ export function SettingsPage() {
               <label className="font-medium">目标语言</label>
               <select
                 value={defaultTargetLang}
-                onChange={(e) => setDefaultTargetLang(e.target.value as LanguageCode)}
+                onChange={e => setDefaultTargetLang(e.target.value as LanguageCode)}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {LANGUAGE_OPTIONS.filter((lang) => lang.value !== 'auto').map((lang) => (
+                {LANGUAGE_OPTIONS.filter(lang => lang.value !== 'auto').map(lang => (
                   <option key={lang.value} value={lang.value}>
                     {lang.label}
                   </option>
@@ -441,10 +441,10 @@ export function SettingsPage() {
               </div>
               <select
                 value={defaultFlashcardGroupId}
-                onChange={(e) => setDefaultFlashcardGroupId(e.target.value)}
+                onChange={e => setDefaultFlashcardGroupId(e.target.value)}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {flashcardGroups.map((group) => (
+                {flashcardGroups.map(group => (
                   <option key={group.id} value={group.id}>
                     {group.name} ({group.cardCount} 张卡片)
                   </option>
@@ -492,7 +492,7 @@ export function SettingsPage() {
               </div>
               <select
                 value={engine}
-                onChange={(e) => setEngine(e.target.value as TranslationEngine)}
+                onChange={e => setEngine(e.target.value as TranslationEngine)}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="google">Google 翻译</option>
@@ -504,7 +504,12 @@ export function SettingsPage() {
             {/* Google API Key 配置 */}
             {engine === 'google' && (
               <div className="p-4 space-y-3">
-                <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    saveConfig();
+                  }}
+                >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -524,7 +529,7 @@ export function SettingsPage() {
                     <input
                       type="password"
                       value={googleApiKey}
-                      onChange={(e) => setGoogleApiKey(e.target.value)}
+                      onChange={e => setGoogleApiKey(e.target.value)}
                       placeholder="AIza..."
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
@@ -540,7 +545,7 @@ export function SettingsPage() {
                     <input
                       type="checkbox"
                       checked={enableDictionary}
-                      onChange={(e) => setEnableDictionary(e.target.checked)}
+                      onChange={e => setEnableDictionary(e.target.checked)}
                       className="w-4 h-4 text-primary"
                     />
                     <span className="text-sm">启用智能词典功能</span>
@@ -553,7 +558,12 @@ export function SettingsPage() {
                 {/* Microsoft API Key 配置（词典功能） */}
                 {enableDictionary && (
                   <div className="pt-3 border-t border-border space-y-3">
-                    <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        saveConfig();
+                      }}
+                    >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <label className="text-sm font-medium">Microsoft API Key（可选）</label>
@@ -570,7 +580,7 @@ export function SettingsPage() {
                         <input
                           type="password"
                           value={microsoftApiKey}
-                          onChange={(e) => setMicrosoftApiKey(e.target.value)}
+                          onChange={e => setMicrosoftApiKey(e.target.value)}
                           placeholder="Microsoft Translator API Key"
                           className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         />
@@ -579,7 +589,7 @@ export function SettingsPage() {
                           <input
                             type="text"
                             value={microsoftRegion}
-                            onChange={(e) => setMicrosoftRegion(e.target.value)}
+                            onChange={e => setMicrosoftRegion(e.target.value)}
                             placeholder="global"
                             className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                           />
@@ -594,7 +604,9 @@ export function SettingsPage() {
                     <div className="pt-3 border-t border-border space-y-3">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium">Azure Speech API Key（可选）</label>
+                          <label className="text-sm font-medium">
+                            Azure Speech API Key（可选）
+                          </label>
                           <a
                             href="https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices"
                             target="_blank"
@@ -608,7 +620,7 @@ export function SettingsPage() {
                         <input
                           type="password"
                           value={azureSpeechKey}
-                          onChange={(e) => setAzureSpeechKey(e.target.value)}
+                          onChange={e => setAzureSpeechKey(e.target.value)}
                           placeholder="Azure Speech Services API Key"
                           className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         />
@@ -617,7 +629,7 @@ export function SettingsPage() {
                           <input
                             type="text"
                             value={azureSpeechRegion}
-                            onChange={(e) => setAzureSpeechRegion(e.target.value)}
+                            onChange={e => setAzureSpeechRegion(e.target.value)}
                             placeholder="eastus"
                             className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                           />
@@ -629,7 +641,7 @@ export function SettingsPage() {
                           <label className="text-sm font-medium">语音名称</label>
                           <select
                             value={azureVoiceName}
-                            onChange={(e) => setAzureVoiceName(e.target.value)}
+                            onChange={e => setAzureVoiceName(e.target.value)}
                             className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                           >
                             <option value="en-US-AriaNeural">美式英语 - Aria (女声)</option>
@@ -643,7 +655,8 @@ export function SettingsPage() {
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg">
                           <p className="text-xs text-blue-700 dark:text-blue-300">
-                            💡 配置 Azure Speech 后，所有新创建的单词卡片将使用统一的 Azure TTS 发音，音质更清晰、发音更统一。
+                            💡 配置 Azure Speech 后，所有新创建的单词卡片将使用统一的 Azure TTS
+                            发音，音质更清晰、发音更统一。
                           </p>
                         </div>
                       </div>
@@ -656,7 +669,12 @@ export function SettingsPage() {
             {/* DeepL API Key 配置 */}
             {engine === 'deepl' && (
               <div className="p-4 space-y-3">
-                <form onSubmit={(e) => { e.preventDefault(); saveConfig(); }}>
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    saveConfig();
+                  }}
+                >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -676,13 +694,11 @@ export function SettingsPage() {
                     <input
                       type="password"
                       value={deeplApiKey}
-                      onChange={(e) => setDeeplApiKey(e.target.value)}
+                      onChange={e => setDeeplApiKey(e.target.value)}
                       placeholder="输入 DeepL API Key"
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      API Key 将安全存储在本地
-                    </p>
+                    <p className="text-xs text-muted-foreground">API Key 将安全存储在本地</p>
                   </div>
                 </form>
               </div>
@@ -729,7 +745,7 @@ export function SettingsPage() {
                 <label className="font-medium">主题模式</label>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {(['light', 'dark', 'auto'] as ThemeMode[]).map((mode) => (
+                {(['light', 'dark', 'auto'] as ThemeMode[]).map(mode => (
                   <button
                     key={mode}
                     onClick={() => setTheme(mode)}
@@ -799,22 +815,24 @@ export function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={autoSync}
-                    onChange={(e) => setAutoSync(e.target.checked)}
+                    onChange={e => setAutoSync(e.target.checked)}
                     disabled={!isLoggedIn}
                     className="sr-only peer"
                   />
-                  <div className={cn(
-                    "w-11 h-6 rounded-full transition-colors",
-                    "peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2",
-                    autoSync && isLoggedIn
-                      ? "bg-primary"
-                      : "bg-muted",
-                    !isLoggedIn && "opacity-50 cursor-not-allowed"
-                  )}>
-                    <div className={cn(
-                      "absolute top-0.5 left-0.5 bg-white rounded-full h-5 w-5 transition-transform",
-                      autoSync && "translate-x-5"
-                    )} />
+                  <div
+                    className={cn(
+                      'w-11 h-6 rounded-full transition-colors',
+                      'peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary peer-focus:ring-offset-2',
+                      autoSync && isLoggedIn ? 'bg-primary' : 'bg-muted',
+                      !isLoggedIn && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'absolute top-0.5 left-0.5 bg-white rounded-full h-5 w-5 transition-transform',
+                        autoSync && 'translate-x-5'
+                      )}
+                    />
                   </div>
                 </label>
               </div>
@@ -824,10 +842,7 @@ export function SettingsPage() {
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <RefreshCw className={cn(
-                    "w-5 h-5",
-                    isSyncing && "animate-spin text-primary"
-                  )} />
+                  <RefreshCw className={cn('w-5 h-5', isSyncing && 'animate-spin text-primary')} />
                   <div>
                     <div className="font-medium">手动同步</div>
                     <p className="text-xs text-muted-foreground">
@@ -1014,10 +1029,14 @@ export function SettingsPage() {
                 <span className="font-medium">存储空间</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                已使用 {(storageQuota.used / 1024 / 1024).toFixed(2)} MB / {(storageQuota.total / 1024 / 1024).toFixed(0)} MB
+                已使用 {(storageQuota.used / 1024 / 1024).toFixed(2)} MB /{' '}
+                {(storageQuota.total / 1024 / 1024).toFixed(0)} MB
               </p>
               <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${storageQuota.percentage}%` }} />
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${storageQuota.percentage}%` }}
+                />
               </div>
             </div>
           </div>
@@ -1029,9 +1048,7 @@ export function SettingsPage() {
           <div className="bg-card border border-border rounded-lg p-4">
             <p className="font-medium mb-1">智能翻译助手 PWA</p>
             <p className="text-sm text-muted-foreground">版本 0.1.0</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              基于 FSRS 算法的智能学习系统
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">基于 FSRS 算法的智能学习系统</p>
           </div>
         </section>
       </div>
