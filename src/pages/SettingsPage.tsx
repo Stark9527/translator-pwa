@@ -23,7 +23,7 @@ import { cn } from '@/utils/cn';
 import { ConfigService } from '@/services/config/ConfigService';
 import { flashcardService } from '@/services/flashcard/FlashcardService';
 import { syncService } from '@/services/sync/SyncService';
-// import { AzureAudioMigrationService, type AzureMigrationProgress } from '@/services/migration/AzureAudioMigration';
+import { AzureAudioMigrationService, type AzureMigrationProgress } from '@/services/migration/AzureAudioMigration';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TranslationEngine, UserConfig, LanguageCode } from '@/types';
@@ -82,8 +82,8 @@ export function SettingsPage() {
     total: 5 * 1024 * 1024,
     percentage: 0,
   });
-  // const [isAzureMigrating, setIsAzureMigrating] = useState(false);
-  // const [azureMigrationProgress, setAzureMigrationProgress] = useState<AzureMigrationProgress | null>(null);
+  const [isAzureMigrating, setIsAzureMigrating] = useState(false);
+  const [azureMigrationProgress, setAzureMigrationProgress] = useState<AzureMigrationProgress | null>(null);
 
   const userEmail = user?.email || null;
   const isLoggedIn = isAuthenticated;
@@ -267,68 +267,69 @@ export function SettingsPage() {
     }
   };
 
-  // const handleAzureMigrateAudio = async () => {
-  //   // 检查是否配置了 Azure Speech API
-  //   if (!azureSpeechKey || !azureSpeechRegion) {
-  //     toast({
-  //       variant: 'destructive',
-  //       title: '配置缺失',
-  //       description: '请先配置 Azure Speech API Key 和 Region',
-  //       duration: 3000,
-  //     });
-  //     return;
-  //   }
+  const handleAzureMigrateAudio = async () => {
+    // 检查是否配置了 Azure Speech API
+    if (!azureSpeechKey || !azureSpeechRegion) {
+      toast({
+        variant: 'destructive',
+        title: '配置缺失',
+        description: '请先配置 Azure Speech API Key 和 Region',
+        duration: 3000,
+      });
+      return;
+    }
 
-  //   try {
-  //     setIsAzureMigrating(true);
-  //     setAzureMigrationProgress(null);
+    try {
+      setIsAzureMigrating(true);
+      setAzureMigrationProgress(null);
 
-  //     // 创建迁移服务实例
-  //     const azureMigration = new AzureAudioMigrationService(
-  //       azureSpeechKey,
-  //       azureSpeechRegion,
-  //       azureVoiceName
-  //     );
+      // 创建迁移服务实例
+      const azureMigration = new AzureAudioMigrationService(
+        azureSpeechKey,
+        azureSpeechRegion,
+        azureVoiceName
+      );
 
-  //     // 检查服务是否可用
-  //     if (!azureMigration.isAvailable()) {
-  //       throw new Error('Azure TTS 服务初始化失败');
-  //     }
+      // 检查服务是否可用
+      if (!azureMigration.isAvailable()) {
+        throw new Error('Azure TTS 服务初始化失败');
+      }
 
-  //     // 执行本地和云端迁移
-  //     const results = await azureMigration.migrateBoth((progress) => {
-  //       setAzureMigrationProgress(progress);
-  //     });
+      // 执行本地和云端迁移
+      const results = await azureMigration.migrateBoth((progress) => {
+        setAzureMigrationProgress(progress);
+      });
 
-  //     // 显示成功提示
-  //     const total = results.local.updated + results.cloud.updated;
-  //     const failed = results.local.failed + results.cloud.failed;
+      // 显示成功提示
+      const total = results.local.updated + results.cloud.updated;
+      const skipped = results.local.skipped + results.cloud.skipped;
+      const failed = results.local.failed + results.cloud.failed;
 
-  //     toast({
-  //       variant: 'success',
-  //       title: 'Azure 音频生成完成',
-  //       description: `成功: ${total} 个，失败: ${failed} 个`,
-  //       duration: 5000,
-  //     });
+      toast({
+        variant: 'success',
+        title: 'Azure 音频生成完成',
+        description: `成功: ${total} 个，跳过: ${skipped} 个，失败: ${failed} 个`,
+        duration: 5000,
+      });
 
-  //     // 如果有失败，显示错误详情
-  //     if (failed > 0) {
-  //       const allErrors = [...results.local.errors, ...results.cloud.errors];
-  //       console.error('Azure 迁移失败详情:', allErrors);
-  //     }
+      // 如果有失败，显示错误详情
+      if (failed > 0) {
+        const allErrors = [...results.local.errors, ...results.cloud.errors];
+        console.error('Azure 迁移失败详情:', allErrors);
+      }
 
-  //   } catch (err) {
-  //     console.error('Azure 迁移失败:', err);
-  //     toast({
-  //       variant: 'destructive',
-  //       title: 'Azure 音频生成失败',
-  //       description: err instanceof Error ? err.message : '未知错误',
-  //       duration: 3000,
-  //     });
-  //   } finally {
-  //     setIsAzureMigrating(false);
-  //   }
-  // };
+    } catch (err) {
+      console.error('Azure 迁移失败:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Azure 音频生成失败',
+        description: err instanceof Error ? err.message : '未知错误',
+        duration: 3000,
+      });
+    } finally {
+      setIsAzureMigrating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -932,7 +933,7 @@ export function SettingsPage() {
             </button>
 
             {/* 批量生成 Azure 音频 */}
-            {/* <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 font-medium">
@@ -942,9 +943,6 @@ export function SettingsPage() {
                     )} />
                     批量生成 Azure 音频
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    为所有英文单词卡片使用 Azure TTS 生成统一发音（需要配置 Azure Speech API）
-                  </p>
                 </div>
                 <button
                   onClick={handleAzureMigrateAudio}
@@ -960,7 +958,7 @@ export function SettingsPage() {
                 </button>
               </div>
 
-              {/* Azure 迁移进度显示 *\/}
+              {/* Azure 迁移进度显示 */}
               {azureMigrationProgress && (
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-2">
                   {azureMigrationProgress.phase === 'fetching' && (
@@ -987,6 +985,7 @@ export function SettingsPage() {
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>✅ 成功: {azureMigrationProgress.updated}</span>
+                        <span>⏭️ 跳过: {azureMigrationProgress.skipped}</span>
                         <span>❌ 失败: {azureMigrationProgress.failed}</span>
                       </div>
                     </>
@@ -1000,6 +999,9 @@ export function SettingsPage() {
                       <div className="text-xs text-muted-foreground space-y-0.5">
                         <p>总计: {azureMigrationProgress.total} 个卡片</p>
                         <p>成功: {azureMigrationProgress.updated} 个</p>
+                        {azureMigrationProgress.skipped > 0 && (
+                          <p>跳过: {azureMigrationProgress.skipped} 个</p>
+                        )}
                         {azureMigrationProgress.failed > 0 && (
                           <p className="text-destructive">失败: {azureMigrationProgress.failed} 个</p>
                         )}
@@ -1021,7 +1023,7 @@ export function SettingsPage() {
                   )}
                 </div>
               )}
-            </div> */}
+            </div>
 
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">

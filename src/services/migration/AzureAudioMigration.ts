@@ -83,30 +83,31 @@ export class AzureAudioMigrationService {
 
   /**
    * 获取本地需要更新的卡片
-   * 获取所有英文单词卡片（无论是否已有 audioUrl，都重新生成）
+   * 只获取没有 audioUrl 的英文单词卡片（避免重复生成）
    */
   private async fetchLocalCardsNeedingAudioUrl(): Promise<Flashcard[]> {
     const allCards = await flashcardDB.getAllFlashcards();
 
-    // 筛选出英文单词的卡片（重新生成所有音频）
+    // 筛选出没有音频的英文单词卡片（避免重复生成）
     return allCards.filter(
-      card => card.sourceLanguage === 'en'
+      card => card.sourceLanguage === 'en' && !card.audioUrl
     );
   }
 
   /**
    * 从云端获取需要更新的卡片
-   * 获取所有卡片（通过 API 判断是否是英文单词）
+   * 只获取没有 audio_url 的卡片
    */
   private async fetchCloudCardsNeedingAudioUrl(): Promise<Array<{ id: string; word: string }>> {
     const client = supabaseService.getClient();
     const userId = supabaseService.getUserId();
 
-    // 获取所有卡片，不过滤 audio_url（重新生成所有音频）
+    // 只获取没有 audio_url 的卡片（避免重复生成）
     const { data, error } = await client
       .from('flashcards')
       .select('id, word')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .is('audio_url', null);
 
     if (error) {
       throw new Error(`获取云端卡片失败: ${error.message}`);
